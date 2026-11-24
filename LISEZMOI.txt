@@ -1,0 +1,87 @@
+TOUR DE GUINÉE 224 — Application de gestion des reportages (version 2)
+Installation sur alwaysdata
+============================================================
+
+Contenu du dossier
+  index.html            l'application (ce que l'on voit dans le navigateur)
+  api.php               le serveur qui enregistre les données
+  config.php            le réglage à modifier avant l'envoi (code d'installation)
+  sw.js, manifest.webmanifest, icon*.png, icon.svg
+                        permettent d'installer l'application sur le téléphone
+                        et de l'ouvrir sans connexion
+  .htaccess             protège config.php et la base de données
+  data/                 la base de données et les photos seront créées ici
+                        automatiquement (dossier protégé)
+
+1. Créer le compte
+   - Allez sur https://www.alwaysdata.com/fr/ et inscrivez-vous (offre gratuite 100 Mo,
+     sans carte bancaire).
+   - Choisissez un nom, par exemple « tourdeguinee224 ». Le site sera :
+     https://tourdeguinee224.alwaysdata.net
+
+2. Vérifier PHP et HTTPS
+   - Dans l'administration : Web > Sites. Le site par défaut est de type « PHP ».
+     Prenez la version PHP la plus récente (8.2 ou plus).
+   - Dans les réglages du site, activez « Forcer HTTPS » (obligatoire pour
+     l'installation sur téléphone et le mode hors connexion).
+
+3. Modifier config.php (important)
+   - Ouvrez config.php avec un éditeur de texte (Bloc-notes).
+   - Remplacez 'changez-moi-224' par un code secret à vous, par exemple 'Conakry-2026-xK7'.
+   - Enregistrez.
+
+4. Envoyer les fichiers
+   - Dans l'administration : Accès distant > FTP, notez l'hôte (ftp-NOM.alwaysdata.net),
+     l'utilisateur et le mot de passe.
+   - Avec FileZilla (gratuit), connectez-vous et copiez TOUT le contenu de ce dossier
+     (y compris .htaccess et le dossier data) dans le dossier « www ».
+     Astuce FileZilla : menu Serveur > « Forcer l'affichage des fichiers cachés »
+     pour voir les fichiers .htaccess.
+   - Autre solution : l'onglet « Fichiers » / gestionnaire de fichiers de l'administration.
+
+5. Première connexion
+   - Ouvrez https://VOTRE-NOM.alwaysdata.net
+   - L'écran « Première installation » s'affiche : entrez le code secret de config.php,
+     votre nom, un identifiant et un mot de passe. C'est le compte administrateur.
+   - Faites-le tout de suite après l'envoi des fichiers.
+
+6. Ajouter les collaborateurs
+   - Onglet Collaborateurs : créez la fiche de chaque collaborateur.
+   - Onglet Réglages > Comptes d'accès : créez un compte par collaborateur et
+     RELIEZ-LE À SA FICHE (liste « Fiche collaborateur »). Sans cela, il ne voit rien.
+   - Envoyez-lui son identifiant et son mot de passe (par WhatsApp).
+   - Ce que voit un collaborateur : ses reportages, sa rémunération, ses frais validés
+     et ses versements. Il ne voit ni les prix facturés, ni les encaissements, ni les
+     marges, ni les autres collaborateurs.
+   - Ce qu'il peut faire : créer ses reportages, changer le statut, déclarer ses frais
+     de terrain, ajouter des photos (reçus, captures). Il ne peut pas changer les
+     montants : c'est l'administrateur qui valide les frais déclarés.
+
+7. Installer sur le téléphone
+   - Ouvrez le site dans Chrome (Android) puis Réglages > « Installer sur ce téléphone »,
+     ou menu ⋮ > « Installer l'application ». Sur iPhone : Safari > Partager >
+     « Sur l'écran d'accueil ».
+   - Sans réseau, l'application s'ouvre avec les dernières données reçues ; les
+     reportages saisis sont gardés dans le téléphone et envoyés au retour du réseau.
+     Les photos, elles, ne peuvent être envoyées qu'avec une connexion.
+
+Mise à jour depuis la version 1
+   - Envoyez par FTP tous les fichiers SAUF config.php (gardez le vôtre) et sans toucher
+     au dossier data (vos données y sont). La base se met à jour toute seule.
+   - Ensuite, reliez chaque compte collaborateur à sa fiche (étape 6).
+   - Onglet Clients : le bouton « Créer les fiches clients correspondantes » transforme
+     les clients écrits à la main dans les anciens reportages en fiches clients.
+
+Sauvegarde
+   - Réglages > Sauvegarde > « Télécharger une sauvegarde (.json) » : toutes les fiches.
+     À faire régulièrement et à garder sur votre ordinateur.
+   - Copie complète par FTP : le fichier www/data/tdg224.sqlite et le dossier
+     www/data/uploads (les photos). alwaysdata fait aussi des sauvegardes automatiques.
+
+Sécurité
+   - Après 5 mots de passe faux, l'identifiant est bloqué 15 minutes depuis cet appareil.
+   - Toutes les modifications sont enregistrées (qui, quand, quelle valeur avant / après) :
+     ouvrez une fiche > « Historique des modifications », ou Réglages > Activité récente.
+   - Vérification : ouvrez https://VOTRE-NOM.alwaysdata.net/data/tdg224.sqlite :
+     vous devez voir « Forbidden » (accès interdit). Si le fichier se télécharge,
+     dites-le-moi pour déplacer la base hors du dossier www.

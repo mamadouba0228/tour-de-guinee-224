@@ -1,0 +1,4 @@
+# Données réelles : ne jamais publier
+data/*.sqlite
+data/*.sqlite-*
+data/uploads/

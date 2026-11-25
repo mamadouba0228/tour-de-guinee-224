@@ -167,22 +167,34 @@ const SOUS_PREFECTURES={
  "Macenta":["Balizia","Binikala","Bofossou","Daro","Fassankoni","Kouankan","Koyama","Macenta-Centre","N'Zébéla","Ourémaï","Panziazou","Sengbédou","Sérédou","Vasérédou","Watanka"],
  "N'Zérékoré":["Bounouma","Gouécké","Kobéla","Koropara","Koulé","N'Zérékoré-Centre","Palé","Samoé","Soulouta","Womey","Yalenzou"],
  "Yomou":["Banié","Bheeta","Bignamou","Bowé","Diécké","Péla","Yomou-Centre"]};
-// Relie région → préfecture → sous-préfecture : chaque liste de suggestions suit le choix précédent.
-function linkLieu(regSel,prefInput,spInput){
-  const dl=i=>i&&document.getElementById(i.getAttribute("list"));
-  const opts=(el,L)=>{if(el)el.innerHTML=[...new Set(L)].sort((a,b)=>a.localeCompare(b,"fr")).map(p=>`<option value="${esc(p)}">`).join("")};
-  const prefs=()=>regSel?.value?PREFECTURES[regSel.value]||[]:Object.values(PREFECTURES).flat();
-  const fillPref=()=>opts(dl(prefInput),prefs());
-  const fillSp=()=>{if(!spInput)return;const p=prefInput?.value;opts(dl(spInput),SOUS_PREFECTURES[p]||(p?[]:prefs().flatMap(x=>SOUS_PREFECTURES[x]||[])))};
-  regSel?.addEventListener("change",()=>{if(prefInput?.value&&regSel.value&&!prefs().includes(prefInput.value))prefInput.value="";fillPref();fillSp()});
-  prefInput?.addEventListener("input",fillSp);prefInput?.addEventListener("change",fillSp);
+// Région d'une préfecture (ou d'une commune de Conakry).
+const prefRegion=p=>Object.keys(PREFECTURES).find(r=>PREFECTURES[r].includes(p))||"";
+// Listes déroulantes liées : région → préfecture → sous-préfecture.
+// Choisir une préfecture remplit la région ; une valeur ancienne absente des listes est conservée.
+function linkLieu(regSel,prefSel,spSel){
+  const fill=(sel,groups,cur,ph)=>{
+    const all=groups.flatMap(g=>g[1]),o=v=>`<option value="${esc(v)}"${v===cur?" selected":""}>${esc(v)}</option>`;
+    sel.innerHTML=`<option value="">${ph}</option>`+(cur&&!all.includes(cur)?o(cur):"")
+      +groups.map(([lab,L])=>lab?`<optgroup label="${esc(lab)}">${L.map(o).join("")}</optgroup>`:L.map(o).join("")).join("");
+    sel.value=cur||""};
+  const fillPref=()=>{if(!prefSel)return;const r=regSel?.value;
+    fill(prefSel,r?[[null,PREFECTURES[r]||[]]]:REGIONS.map(g=>[g,PREFECTURES[g]]),prefSel.value||prefSel.dataset.cur||"",r==="Conakry"?"— Commune —":"— Préfecture —")};
+  const fillSp=()=>{if(!spSel)return;const p=prefSel?.value||"",L=SOUS_PREFECTURES[p]||[],cur=spSel.value||spSel.dataset.cur||"";
+    fill(spSel,[[null,L]],cur,!p?"— Choisir d’abord la préfecture —":L.length?"— Sous-préfecture —":"— Pas de liste pour "+p+" —");
+    spSel.disabled=spSel.dataset.ro==="1"||(!L.length&&!cur)};
+  regSel?.addEventListener("change",()=>{
+    if(prefSel?.value&&regSel.value&&prefRegion(prefSel.value)&&prefRegion(prefSel.value)!==regSel.value){prefSel.value="";if(spSel)spSel.value=""}
+    if(prefSel)prefSel.dataset.cur="";if(spSel)spSel.dataset.cur="";fillPref();fillSp()});
+  prefSel?.addEventListener("change",()=>{const r=prefRegion(prefSel.value);if(regSel&&r&&regSel.value!==r)regSel.value=r;
+    if(spSel){spSel.value="";spSel.dataset.cur=""}prefSel.dataset.cur="";fillPref();fillSp()});
   fillPref();fillSp();
 }
 // Lieu d'un reportage, en clair : « Timbi-Madina, sous-préfecture de …, préfecture de …, région de … ».
+// (La région n'est pas imprimée sur les reçus.)
 const lieuRep=r=>[r.village,r.sousPrefecture&&r.sousPrefecture!==r.village&&"sous-préfecture de "+r.sousPrefecture,
-  r.prefecture&&(r.region==="Conakry"?"commune de ":"préfecture de ")+r.prefecture,r.region&&(r.region==="Conakry"?"Conakry":"région de "+r.region)].filter(Boolean).join(", ");
+  r.prefecture&&(prefRegion(r.prefecture)==="Conakry"?"commune de ":"préfecture de ")+r.prefecture].filter(Boolean).join(", ");
 // Lignes de localisation d'un client (pour la fiche et les reçus).
-const lieuClient=c=>!c?[]:[c.region&&"Région : "+c.region,c.prefecture&&(c.region==="Conakry"?"Commune : ":"Préfecture : ")+c.prefecture,c.sousPrefecture&&"Sous-préfecture : "+c.sousPrefecture,c.adresse&&"Adresse : "+c.adresse].filter(Boolean);
+const lieuClient=c=>!c?[]:[c.prefecture&&(prefRegion(c.prefecture)==="Conakry"?"Commune : ":"Préfecture : ")+c.prefecture,c.sousPrefecture&&"Sous-préfecture : "+c.sousPrefecture,c.adresse&&"Adresse : "+c.adresse].filter(Boolean);
 const MOYENS=["Orange Money","MTN MoMo","Espèces","Transfert (WU, Ria…)","Autre"];
 const PLATEFORMES=["Facebook","TikTok"];
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
@@ -471,9 +483,9 @@ function openForm(kind,id){
       ${!v&&d.client?`<p class="note full" style="margin:-6px 0 0">Client noté à la main : ${esc(d.client)} ${esc(d.contact)}</p>`:""}
       <div class="grid2 full" id="newcli" hidden><label>Nom du nouveau client<input name="_cnom"></label><label>Téléphone du client<input name="_ctel" type="tel"></label>
       <label>Région du client<select name="_creg"><option value="">—</option>${REGIONS.map(g=>`<option>${esc(g)}</option>`).join("")}</select></label>
-      <label>Préfecture (commune à Conakry)<input name="_cpref" list="dl-cpref" autocomplete="off"><datalist id="dl-cpref"></datalist></label>
-      <label class="full">Sous-préfecture<input name="_csp" list="dl-csp" autocomplete="off"><datalist id="dl-csp"></datalist></label></div>`}
-    if(t==="pref")return `<label>${l}<input name="${k}" list="dl-${k}" autocomplete="off" value="${esc(v)}"${dis}><datalist id="dl-${k}"></datalist></label>`;
+      <label>Préfecture (commune à Conakry)<select name="_cpref"></select></label>
+      <label class="full">Sous-préfecture<select name="_csp"></select></label></div>`}
+    if(t==="pref"||t==="sp")return `<label>${l}<select name="${k}" data-cur="${esc(v)}"${dis?' disabled data-ro="1"':""}></select></label>`;
     if(t==="sel"||t==="col"||t==="rep"){const o=t==="col"?S.col.slice().sort(byNom).map(c=>[c.id,c.nom]):t==="rep"?S.rep.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(x=>[x.id,x.titre]):opts.map(x=>[x,x]);
       return `<label${cls}>${l}<select name="${k}"${r}${dis}><option value="">—</option>${o.map(([a,b])=>`<option value="${esc(a)}" ${a===v?"selected":""}>${esc(b)}</option>`).join("")}</select></label>`}
     if(t==="chk")return `<div class="full"><span style="font-size:14px;font-weight:600">${l}</span><div class="chk">${opts.map(o=>`<label><input type="checkbox" name="${k}" value="${o}" ${(d[k]||[]).includes(o)?"checked":""}${dis}>${o}</label>`).join("")}</div></div>`;
@@ -505,7 +517,7 @@ function openForm(kind,id){
   frm.oninput=calc;calc();
   const h=$("#hist");if(h)h.ontoggle=async()=>{if(!h.open||h.dataset.l)return;h.dataset.l=1;try{const {hist}=await api("hist",{q:{coll:COLL[kind],id}});h.lastElementChild.outerHTML=`<div>${histHTML(hist)}</div>`}catch(e){h.lastElementChild.textContent=e.offline?"Indisponible hors connexion.":"Impossible de charger l’historique."}};
   if($("#recuPrint")){ // valeurs enregistrées de la fiche ; images préchargées pour que le partage parte tout de suite
-    const pre=Promise.all([loadImg("logo.png"),loadSig().then(loadImg)]);
+    const pre=Promise.all([loadImg("logo2.jpg"),loadSig().then(loadImg)]);
     $("#recuPrint").onclick=()=>recuPrint({...d,id});
     $("#recuWa").onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{await recuWhatsApp({...d,id},pre)}catch(x){toast("Envoi impossible : "+x.message)}finally{b.disabled=false}};
   }
@@ -603,7 +615,7 @@ async function recuPrint(r){
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:30px;break-inside:avoid">
   <p style="margin:0;white-space:pre-line;color:#333;flex:1">${esc(c.entPied||"")}</p>
   <div style="width:240px;text-align:center;flex:none">
-    <img src="logo.png" alt="Tour de Guinée 224" style="display:block;height:80px;width:auto;margin:0 auto 6px">
+    <img src="logo2.jpg" alt="Tour de Guinée 224" style="display:block;height:110px;width:auto;margin:0 auto 6px">
     ${sig?`<img src="${sig}" alt="Signature" style="display:block;height:72px;width:auto;margin:0 auto">`:'<div style="height:72px"></div>'}
     <div style="border-top:1px solid #999;padding-top:4px;font-size:10pt;color:#444">${esc(c.entSignataire||"Signature")}</div>
   </div></div></div>`;
@@ -640,8 +652,8 @@ function drawRecu(D,r,logo,sig){
   if(D.paye){T("Payé intégralement. Merci pour votre confiance.",M,y,{w:700,s:28});y+=40}
   // Bas de page : mention à gauche ; à droite le logo, puis la signature dessous.
   const bw=380,bx=W-M-bw;let by=y+70;
-  if(logo){const h=140,w=logo.naturalWidth/logo.naturalHeight*h;x.drawImage(logo,bx+(bw-w)/2,by,w,h)}
-  by+=150;
+  if(logo){const h=200,w=logo.naturalWidth/logo.naturalHeight*h;x.drawImage(logo,bx+(bw-w)/2,by,w,h)}
+  by+=210;
   if(sig){const k=sig.naturalWidth/sig.naturalHeight,w=Math.min(bw,130*k),h=w/k;x.drawImage(sig,bx+(bw-w)/2,by+130-h,w,h)}
   by+=136;x.fillStyle="#999";x.fillRect(bx,by,bw,2);T(D.c.entSignataire||"Signature",bx+bw/2,by+34,{s:22,c:"#444",a:"center"});
   const pied=wrap(D.c.entPied,bx-M-40,400,24);pied.forEach((l,i)=>T(l,M,by+34-(pied.length-1-i)*34,{s:24,c:"#333"}));

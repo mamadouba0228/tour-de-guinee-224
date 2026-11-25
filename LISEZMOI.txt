@@ -50,9 +50,11 @@ Contenu du dossier
    - Onglet Réglages > Comptes d'accès : créez un compte par collaborateur et
      RELIEZ-LE À SA FICHE (liste « Fiche collaborateur »). Sans cela, il ne voit rien.
    - Envoyez-lui son identifiant et son mot de passe (par WhatsApp).
-   - Ce que voit un collaborateur : ses reportages, sa rémunération, ses frais validés
-     et ses versements. Il ne voit ni les prix facturés, ni les encaissements, ni les
-     marges, ni les autres collaborateurs.
+   - Ce que voit un collaborateur : les reportages de toute l'équipe (titre, lieu, client,
+     date, statut, qui le fait), et pour les siens seulement : sa rémunération, ses frais
+     et ses photos. Il voit uniquement ses propres versements. Il ne voit jamais les prix
+     facturés, les encaissements ni les marges.
+   - Il ne peut modifier que ses propres reportages ; ceux des autres sont en lecture seule.
    - Ce qu'il peut faire : créer ses reportages, changer le statut, déclarer ses frais
      de terrain, ajouter des photos (reçus, captures). Il ne peut pas changer les
      montants : c'est l'administrateur qui valide les frais déclarés.

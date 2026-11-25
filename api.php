@@ -63,25 +63,36 @@ function getRow(string $coll, string $id): ?array {
   if (!$r) return null;
   return ['data' => json_decode($r['data'], true) ?: [], 'par' => (int) $r['par']];
 }
+// Ce reportage (ou ce versement) est-il celui du collaborateur connecté ?
+function isMine(array $u, array $d): bool { return $u['collab'] !== '' && ($d['collab'] ?? '') === $u['collab']; }
 // Le compte $u peut-il voir ce document ?
+// Un collaborateur voit tous les reportages de l'équipe, mais seulement SES versements.
 function canSee(array $u, string $coll, string $id, array $d): bool {
   if (isAdmin($u)) return true;
-  $c = $u['collab'];
   return match ($coll) {
-    'reportages', 'versements' => $c !== '' && ($d['collab'] ?? '') === $c,
-    'collaborateurs' => $c !== '' && $id === $c,
-    'clients', 'config' => true,
+    'reportages', 'collaborateurs', 'clients', 'config' => true,
+    'versements' => isMine($u, $d),
     default => false,
   };
 }
 // Ce que le compte $u voit du document (les montants confidentiels sont retirés pour un collaborateur).
-function view(array $u, string $coll, array $d): array {
+function view(array $u, string $coll, string $id, array $d): array {
   if (isAdmin($u)) return $d;
-  if ($coll === 'reportages') foreach (COLLAB_REP_HIDDEN as $k) unset($d[$k]);
+  if ($coll === 'reportages') {
+    foreach (COLLAB_REP_HIDDEN as $k) unset($d[$k]);
+    // Reportage d'un autre collaborateur : aucun montant.
+    if (!isMine($u, $d)) foreach (['partCollab', 'frais', 'fraisDeclares'] as $k) unset($d[$k]);
+  }
   if ($coll === 'clients') $d = array_intersect_key($d, ['nom' => 1, 'tel' => 1]);
   if ($coll === 'config') $d = array_intersect_key($d, ['taux' => 1]);
-  if ($coll === 'collaborateurs') unset($d['notes']);
+  // Fiches des autres collaborateurs : seulement le nom et la zone.
+  if ($coll === 'collaborateurs') $d = $id === $u['collab'] ? array_diff_key($d, ['notes' => 1]) : array_intersect_key($d, ['nom' => 1, 'region' => 1]);
   return $d;
+}
+// Pièces jointes : un collaborateur ne voit que celles de SES reportages et de SES versements.
+function canSeeFile(array $u, array $f, ?array $row): bool {
+  if (isAdmin($u)) return true;
+  return $row !== null && in_array($f['coll'], ['reportages', 'versements'], true) && isMine($u, $row['data']);
 }
 function short($v): ?string {
   if ($v === null || $v === '') return null;
@@ -179,20 +190,20 @@ switch ($a) {
     $res = array_fill_keys(COLLS, []);
     $names = [];
     foreach (db()->query('SELECT id, nom FROM users') as $r) $names[(int) $r['id']] = $r['nom'];
-    $visible = [];
+    $mine = []; // reportages et versements du collaborateur connecté (pour les pièces jointes)
     foreach (db()->query('SELECT coll, id, data, maj, par FROM docs') as $r) {
       if (!isset($res[$r['coll']])) continue;
       $d = json_decode($r['data'], true) ?: [];
       if (!canSee($u, $r['coll'], $r['id'], $d)) continue;
-      $visible[$r['coll'] . '/' . $r['id']] = true;
-      $d = view($u, $r['coll'], $d);
+      if (isMine($u, $d)) $mine[$r['coll'] . '/' . $r['id']] = true;
+      $d = view($u, $r['coll'], $r['id'], $d);
       $d['id'] = $r['id']; $d['_maj'] = $r['maj']; $d['_par'] = $names[(int) $r['par']] ?? '';
       $res[$r['coll']][] = $d;
     }
     $files = [];
     foreach (db()->query('SELECT * FROM files ORDER BY quand') as $f) {
       // Un collaborateur ne voit que les pièces de ses reportages et de ses versements.
-      if (isAdmin($u) || (in_array($f['coll'], ['reportages', 'versements'], true) && isset($visible[$f['coll'] . '/' . $f['docid']]))) $files[] = fileMeta($f);
+      if (isAdmin($u) || (in_array($f['coll'], ['reportages', 'versements'], true) && isset($mine[$f['coll'] . '/' . $f['docid']]))) $files[] = fileMeta($f);
     }
     out(['data' => $res, 'files' => $files, 'stockage' => isAdmin($u) ? ['utilise' => filesUsed(), 'max' => FILES_QUOTA] : null, 'me' => $u]);
 
@@ -283,10 +294,7 @@ switch ($a) {
     $s = db()->prepare('SELECT * FROM files WHERE id = ?'); $s->execute([(string) ($_GET['id'] ?? '')]);
     $f = $s->fetch();
     if (!$f) fail('Fichier introuvable', 404);
-    if (!isAdmin($u)) {
-      $row = getRow($f['coll'], $f['docid']);
-      if (!$row || !in_array($f['coll'], ['reportages', 'versements'], true) || !canSee($u, $f['coll'], $f['docid'], $row['data'])) fail('Accès refusé', 403);
-    }
+    if (!canSeeFile($u, $f, isAdmin($u) ? null : getRow($f['coll'], $f['docid']))) fail('Accès refusé', 403);
     $p = filePath($f['id']);
     if (!is_file($p)) fail('Fichier introuvable', 404);
     $safe = preg_replace('/[^A-Za-z0-9._-]+/', '_', $f['nom']) ?: 'fichier';

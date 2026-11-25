@@ -63,15 +63,17 @@
   const E = (error, status = 400) => R({ error }, status);
   const me = () => { const u = db.users.find(x => x.id === +localStorage.getItem(KS)); return u ? { id: u.id, nom: u.nom, login: u.login, role: u.role, collab: u.collab || "" } : null; };
   const isAdmin = u => u.role === "admin";
-  const canSee = (u, c, id, d) => isAdmin(u) || ({ reportages: 1, versements: 1 }[c] ? !!u.collab && d.collab === u.collab : c === "collaborateurs" ? !!u.collab && id === u.collab : c === "clients" || c === "config");
+  const isMine = (u, d) => !!u.collab && d.collab === u.collab;
+  // Comme api.php : un collaborateur voit tous les reportages, mais seulement ses versements.
+  const canSee = (u, c, id, d) => isAdmin(u) || (c === "versements" ? isMine(u, d) : ["reportages", "collaborateurs", "clients", "config"].includes(c));
   const pick = (o, keys) => Object.fromEntries(Object.entries(o).filter(([k]) => keys.includes(k)));
-  function view(u, c, d) {
+  function view(u, c, id, d) {
     if (isAdmin(u)) return { ...d };
     d = { ...d };
-    if (c === "reportages") HIDDEN.forEach(k => delete d[k]);
+    if (c === "reportages") { HIDDEN.forEach(k => delete d[k]); if (!isMine(u, d)) ["partCollab", "frais", "fraisDeclares"].forEach(k => delete d[k]); }
     if (c === "clients") d = pick(d, ["nom", "tel"]);
     if (c === "config") d = pick(d, ["taux"]);
-    if (c === "collaborateurs") delete d.notes;
+    if (c === "collaborateurs") { if (id === u.collab) delete d.notes; else d = pick(d, ["nom", "region"]); }
     return d;
   }
   const short = v => v === null || v === undefined || v === "" ? null : (Array.isArray(v) ? v.join(", ") : typeof v === "boolean" ? (v ? "oui" : "non") : String(v)).slice(0, 200);
@@ -114,8 +116,8 @@
         const data = Object.fromEntries(COLLS.map(c => [c, []])), vis = new Set(), names = Object.fromEntries(db.users.map(z => [z.id, z.nom]));
         for (const c of COLLS) for (const [id, r] of Object.entries(db.docs[c] || {})) {
           if (!canSee(u, c, id, r.data)) continue;
-          vis.add(c + "/" + id);
-          data[c].push({ ...view(u, c, r.data), id, _maj: r.maj, _par: names[r.par] || "" });
+          if (isMine(u, r.data)) vis.add(c + "/" + id);
+          data[c].push({ ...view(u, c, id, r.data), id, _maj: r.maj, _par: names[r.par] || "" });
         }
         const files = db.files.filter(f => isAdmin(u) || (["reportages", "versements"].includes(f.coll) && vis.has(f.coll + "/" + f.docid))).map(meta);
         const used = db.files.reduce((s, f) => s + f.taille, 0);

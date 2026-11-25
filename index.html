@@ -222,10 +222,11 @@ function vDash(){
   <h3>Par collaborateur</h3>${barsCollab()}`;
 }
 function vDashCollab(){
-  const x=collabStats(MYCOL()),enCours=S.rep.filter(r=>r.statut!=="Publié").length,t=num(S.cfg.taux)||1;
+  const mine=S.rep.filter(r=>r.collab===MYCOL()),x=collabStats(MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length,t=num(S.cfg.taux)||1;
   return `<div class="row"><h2 class="sp">Bonjour ${esc(S.me.nom)}</h2>${MYCOL()?'<button class="pri" data-new="rep">+ Nouveau reportage</button>':""}</div>
   <div class="kpis">${kN("Mes reportages",x.n,enCours+" en cours")}${kM("Ce qui m’est dû",x.du,x.du/t,"· rémunération + frais validés")}${kM("Déjà reçu",x.verse,x.verse/t)}${kM("Reste à recevoir",x.reste,x.reste/t)}</div>
-  <h3>Mes reportages</h3>${board(S.rep)}`;
+  <h3>Mes reportages</h3>${board(mine)}
+  <p class="note">Les reportages de toute l’équipe sont dans l’onglet <a href="#reportages">Reportages</a> (${S.rep.length} au total).</p>`;
 }
 function card(r){
   const p=pay(r);
@@ -242,7 +243,7 @@ function filteredReps(){
   const q=F.q.toLowerCase();
   if(q)L=L.filter(r=>[r.titre,r.village,cliNom(r),r.region].join(" ").toLowerCase().includes(q));
   if(F.st)L=L.filter(r=>r.statut===F.st);
-  if(ADM()&&F.co)L=L.filter(r=>r.collab===F.co);
+  if(F.co)L=L.filter(r=>r.collab===F.co);
   if(ADM()&&F.pay)L=L.filter(r=>pay(r)[0]===F.pay);
   return L;
 }
@@ -254,12 +255,13 @@ function vReps(){
   const tit=r=>`<strong>${esc(r.titre)}</strong>${nbPj("reportages",r.id)}${r._pending?' <span class="pill p-wait">en attente</span>':""}${sub(r)}`;
   const rows=ADM()
     ?`<thead><tr><th>Date</th><th>Reportage</th><th>Client</th><th>Collaborateur</th><th>Statut</th><th>Paiement</th><th class="n">Prix</th><th class="n">Marge</th></tr></thead><tbody>${L.map(r=>{const p=pay(r);return `<tr class="click" data-edit="rep:${esc(r.id)}"><td style="white-space:nowrap">${dt(r.date)}</td><td>${tit(r)}</td><td>${esc(cliNom(r))}</td><td>${esc(colName(r.collab))}</td><td>${esc(r.statut)}</td><td><span class="pill ${p[1]}">${p[0]}</span></td><td class="n">${gnf(r.prix)}</td><td class="n">${gnf(marge(r))}</td></tr>`}).join("")}</tbody>`
-    :`<thead><tr><th>Date</th><th>Reportage</th><th>Client</th><th>Statut</th><th class="n">Ma rémunération</th><th class="n">Frais validés</th></tr></thead><tbody>${L.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td style="white-space:nowrap">${dt(r.date)}</td><td>${tit(r)}</td><td>${esc(cliNom(r))}</td><td>${esc(r.statut)}</td><td class="n">${gnf(r.partCollab)}</td><td class="n">${gnf(r.frais)}</td></tr>`).join("")}</tbody>`;
+    // Collaborateur : tous les reportages de l'équipe ; les montants seulement sur les siens.
+    :`<thead><tr><th>Date</th><th>Reportage</th><th>Client</th><th>Collaborateur</th><th>Statut</th><th class="n">Ma rémunération</th><th class="n">Frais validés</th></tr></thead><tbody>${L.map(r=>{const m=r.collab===MYCOL();return `<tr class="click" data-edit="rep:${esc(r.id)}"><td style="white-space:nowrap">${dt(r.date)}</td><td>${tit(r)}</td><td>${esc(cliNom(r))}</td><td>${m?"<strong>Moi</strong>":esc(colName(r.collab))}</td><td>${esc(r.statut)}</td><td class="n">${m?gnf(r.partCollab):"—"}</td><td class="n">${m?gnf(r.frais):"—"}</td></tr>`}).join("")}</tbody>`;
   return `<div class="row"><h2 class="sp">Reportages (${L.length})</h2>${ADM()?'<button id="csvRep">Télécharger en CSV</button>':""}${ADM()||MYCOL()?'<button class="pri" data-new="rep">+ Nouveau</button>':""}</div>
   <div class="row" style="margin-bottom:12px"><input id="fq" type="search" aria-label="Rechercher" placeholder="Rechercher titre, village, client…" value="${esc(F.q)}" style="flex:2 1 220px">
   <select id="fst" aria-label="Statut" style="flex:1 1 140px">${o("Tous statuts","",F.st)}${STATUTS.map(s=>o(s,s,F.st)).join("")}</select>
-  ${ADM()?`<select id="fco" aria-label="Collaborateur" style="flex:1 1 140px">${o("Tous collaborateurs","",F.co)}${S.col.slice().sort(byNom).map(c=>o(c.nom,c.id,F.co)).join("")}</select>
-  <select id="fpay" aria-label="Paiement" style="flex:1 1 120px">${o("Tout paiement","",F.pay)}${["Payé","Avance","Impayé"].map(s=>o(s,s,F.pay)).join("")}</select>`:""}</div>
+  <select id="fco" aria-label="Collaborateur" style="flex:1 1 140px">${o("Tous collaborateurs","",F.co)}${S.col.slice().sort(byNom).map(c=>o(c.id===MYCOL()?"Mes reportages":c.nom,c.id,F.co)).join("")}</select>
+  ${ADM()?`<select id="fpay" aria-label="Paiement" style="flex:1 1 120px">${o("Tout paiement","",F.pay)}${["Payé","Avance","Impayé"].map(s=>o(s,s,F.pay)).join("")}</select>`:""}</div>
   ${L.length?`<table class="stack">${rows}</table>`:'<div class="empty">Aucun reportage ne correspond.</div>'}`;
 }
 
@@ -340,7 +342,7 @@ function vCfg(){
   <label class="full">Nom et fonction sous la signature<input name="entSignataire" placeholder="ex. Le directeur" value="${esc(c.entSignataire)}"></label>
   <label class="full">Mention en bas des factures (moyens de paiement, n° Orange Money…)<textarea name="entPied">${esc(c.entPied)}</textarea></label>
   <div class="full"><button class="pri">Enregistrer</button></div></form></div>
-  <div class="sec"><h3>Comptes d’accès</h3><p class="note">Créez un compte par collaborateur et <strong>reliez-le à sa fiche collaborateur</strong> : il ne verra que ses propres reportages et ses versements, sans les prix ni les marges. Il peut créer des reportages, changer leur statut, déclarer ses frais et ajouter des photos. Envoyez-lui son identifiant et son mot de passe par WhatsApp.</p>
+  <div class="sec"><h3>Comptes d’accès</h3><p class="note">Créez un compte par collaborateur et <strong>reliez-le à sa fiche collaborateur</strong> : il voit les reportages de toute l’équipe (sans aucun montant sur ceux des autres) et seulement ses propres versements, jamais les prix ni les marges. Il peut créer des reportages et modifier les siens : statut, frais déclarés, photos. Envoyez-lui son identifiant et son mot de passe par WhatsApp.</p>
   <p class="note">Un <strong>administrateur</strong> voit et modifie tout, y compris les comptes. Vous pouvez changer le rôle d’un compte dans la liste ci-dessous ; il reste toujours au moins un administrateur.</p>
   <div id="users"><div class="note">Chargement…</div></div>
   <form id="uadd" class="grid2" style="margin-top:12px"><label>Nom<input name="nom" required></label><label>Identifiant<input name="login" required autocomplete="off" autocapitalize="none" pattern="[A-Za-z0-9._\\-]{3,40}" title="3 à 40 lettres sans accent, chiffres, point, tiret" placeholder="ex. mamadou"></label>
@@ -396,13 +398,15 @@ for(const k in FORMS)for(const f of FORMS[k])FIELD_LBL[f[0]]??=f[1].replace(/ \(
 Object.assign(FIELD_LBL,{client:"Client",contact:"Téléphone du client",fichier:"Fichier",fiche:"Fiche",clientId:"Client"});
 const COLL={rep:"reportages",col:"collaborateurs",ver:"versements",cli:"clients"};
 const TITLES={rep:"Reportage",col:"Collaborateur",ver:"Versement",cli:"Client"};
-const canEdit=kind=>ADM()||(kind==="rep"&&!!MYCOL());
+// Un collaborateur modifie ses reportages (et en crée) ; ceux des autres sont en lecture seule.
+const canEdit=(kind,d={})=>ADM()||(kind==="rep"&&!!MYCOL()&&(!d.collab||d.collab===MYCOL()));
 
 function openForm(kind,id){
   const isNew=!id;id=id||newId();
   const d=isNew?{rep:{statut:"Demande",date:today(),taux:S.cfg.taux,collab:ADM()?"":MYCOL()},ver:{date:today()}}[kind]||{}:(S[kind].find(x=>x.id===id)||{});
-  const edit=canEdit(kind);
-  const fields=FORMS[kind].filter(f=>ADM()||f[5]!=="adm");
+  const edit=canEdit(kind,d);
+  const autre=!ADM()&&kind==="rep"&&!isNew&&d.collab!==MYCOL(); // reportage d'un autre collaborateur
+  const fields=FORMS[kind].filter(f=>(ADM()||f[5]!=="adm")&&!(autre&&["partCollab","frais","fraisDeclares"].includes(f[0])));
   const fld=([k,l,t,req,opts,w])=>{const ro=!edit||(!ADM()&&w==="ro"),v=k==="taux"&&!num(d[k])?S.cfg.taux:d[k]??"",cls=t==="area"?' class="full"':"",r=req?" required":"",dis=ro?" disabled":"";
     if(t==="cli"){const o=S.cli.slice().sort(byNom);
       return `<label class="full">${l}<select name="clientId"${dis}><option value="">—</option>${o.map(c=>`<option value="${esc(c.id)}" ${c.id===v?"selected":""}>${esc(c.nom)}${c.tel?" · "+esc(c.tel):""}</option>`).join("")}${ro?"":'<option value="__new">+ Nouveau client…</option>'}</select></label>
@@ -418,7 +422,8 @@ function openForm(kind,id){
   const pjColl=kind==="cli"?"clients":COLL[kind];
   $("#dlg").innerHTML=`<form id="frm"><div class="row" style="margin-bottom:14px"><h2 class="sp" style="margin:0">${isNew?(kind==="ver"?"Nouveau versement":"Nouveau "+TITLES[kind].toLowerCase()):esc(d.titre||d.nom||TITLES[kind])}</h2><button type="button" id="x" aria-label="Fermer">✕</button></div>
   <div class="grid2">${fields.map(fld).join("")}${kind==="rep"&&ADM()?'<div class="full calc" id="calc"></div>':""}
-  ${kind!=="col"?`<div class="full" id="fbox"></div>`:""}
+  ${autre?`<p class="note full" style="margin:0">Reportage de <strong>${esc(colName(d.collab))}</strong> : lecture seule.</p>`:""}
+  ${kind!=="col"&&!autre?`<div class="full" id="fbox"></div>`:""}
   ${kind==="cli"&&!isNew?cliReps(id):""}
   ${d._maj?`<p class="note full" style="margin:0">Dernière modification le ${dtt(d._maj)}${d._par?" par "+esc(d._par):""}.</p>`:""}
   ${ADM()&&exists?'<details class="full" id="hist"><summary>Historique des modifications</summary><div class="note">Chargement…</div></details>':""}</div>

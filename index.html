@@ -321,7 +321,7 @@ const nbPj=(c,id)=>{const n=S.files.filter(f=>f.coll===c&&f.docid===id).length;r
 function vReps(){
   const L=filteredReps();
   const o=(a,v,s)=>`<option value="${esc(v)}" ${s===v?"selected":""}>${esc(a)}</option>`;
-  const sub=r=>`<div class="note">${esc([r.village,r.sousPrefecture!==r.village&&r.sousPrefecture,r.prefecture,r.region].filter(Boolean).join(" · "))}${(r.plateformes||[]).length?" · "+esc(r.plateformes.join(", ")):""}</div>`;
+  const sub=r=>`<div class="note">${esc([r.village,r.sousPrefecture!==r.village&&r.sousPrefecture,r.prefecture].filter(Boolean).join(" · "))}${(r.plateformes||[]).length?" · "+esc(r.plateformes.join(", ")):""}</div>`;
   const tit=r=>`<strong>${esc(r.titre)}</strong>${nbPj("reportages",r.id)}${r._pending?' <span class="pill p-wait">en attente</span>':""}${sub(r)}`;
   const rows=ADM()
     ?`<thead><tr><th>Date</th><th>Reportage</th><th>Client</th><th>Collaborateur</th><th>Statut</th><th>Paiement</th><th class="n">Prix</th><th class="n">Marge</th></tr></thead><tbody>${L.map(r=>{const p=pay(r);return `<tr class="click" data-edit="rep:${esc(r.id)}"><td style="white-space:nowrap">${dt(r.date)}</td><td>${tit(r)}</td><td>${esc(cliNom(r))}</td><td>${esc(colName(r.collab))}</td><td>${esc(r.statut)}</td><td><span class="pill ${p[1]}">${p[0]}</span></td><td class="n">${gnf(r.prix)}</td><td class="n">${gnf(marge(r))}</td></tr>`}).join("")}</tbody>`
@@ -342,7 +342,7 @@ function vClients(){
   const anciens=S.rep.filter(r=>!r.clientId&&String(r.client||"").trim());
   return `<div class="row"><h2 class="sp">Clients (${L.length})</h2><button class="pri" data-new="cli">+ Nouveau client</button></div>
   ${anciens.length?`<div class="banner row"><span class="sp">${anciens.length} reportage${anciens.length>1?"s ont":" a"} un client écrit à la main, sans fiche client.</span><button id="migr">Créer les fiches clients correspondantes</button></div>`:""}
-  ${L.length?`<table class="stack"><thead><tr><th>Client</th><th>Téléphone</th><th>Localité</th><th class="n">Reportages</th><th class="n">Facturé</th><th class="n">Encaissé</th><th class="n">Reste dû</th></tr></thead><tbody>${L.map(c=>{const x=cliStats(c.id);return `<tr class="click" data-edit="cli:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.adresse?`<div class="note">${esc(c.adresse)}</div>`:""}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td>${esc([c.sousPrefecture,c.prefecture,c.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(", "))}</td><td class="n">${x.n}</td><td class="n">${gnf(x.f)}</td><td class="n">${gnf(x.e)}</td><td class="n"><strong>${gnf(x.reste)}</strong></td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun client pour l’instant. Les clients créés depuis un reportage apparaissent ici.</div>'}`;
+  ${L.length?`<table class="stack"><thead><tr><th>Client</th><th>Téléphone</th><th>Localité</th><th class="n">Reportages</th><th class="n">Facturé</th><th class="n">Encaissé</th><th class="n">Reste dû</th></tr></thead><tbody>${L.map(c=>{const x=cliStats(c.id);return `<tr class="click" data-edit="cli:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.adresse?`<div class="note">${esc(c.adresse)}</div>`:""}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td>${esc([c.sousPrefecture,c.prefecture].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(", "))}</td><td class="n">${x.n}</td><td class="n">${gnf(x.f)}</td><td class="n">${gnf(x.e)}</td><td class="n"><strong>${gnf(x.reste)}</strong></td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun client pour l’instant. Les clients créés depuis un reportage apparaissent ici.</div>'}`;
 }
 
 /* Statistiques : barres horizontales à une seule série (une couleur), valeur écrite à côté, tableau disponible. */
@@ -457,12 +457,12 @@ async function loadActivity(){const box=$("#activity");if(!box)return;try{const 
 /* ---------- Formulaires ---------- */
 // [clé, libellé, type, obligatoire, options, accès]  accès : "adm" = caché aux collaborateurs, "ro" = lecture seule pour eux
 const FORMS={
- rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","pref"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
+ rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
   ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],["taux","Taux de change du reportage : 1 € = … GNF","num",0,null,"adm"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
  col:[["nom","Nom complet","text",1],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,REGIONS],["moyen","Moyen de paiement préféré","sel",0,MOYENS],["notes","Notes","area"]],
  ver:[["collab","Collaborateur","col",1],["date","Date","date"],["montant","Montant (GNF)","num",1],["moyen","Moyen","sel",0,MOYENS],["ref","Référence de transaction","text"],["rep","Pour le reportage (facultatif)","rep"],["notes","Notes","area"]],
- cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","pref"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
+ cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
 };
 for(const k in FORMS)for(const f of FORMS[k])FIELD_LBL[f[0]]??=f[1].replace(/ \(GNF\)$/,"");
 Object.assign(FIELD_LBL,{client:"Client",contact:"Téléphone du client",fichier:"Fichier",fiche:"Fiche",clientId:"Client"});
@@ -482,7 +482,6 @@ function openForm(kind,id){
       return `<label class="full">${l}<select name="clientId"${dis}><option value="">—</option>${o.map(c=>`<option value="${esc(c.id)}" ${c.id===v?"selected":""}>${esc(c.nom)}${c.tel?" · "+esc(c.tel):""}</option>`).join("")}${ro?"":'<option value="__new">+ Nouveau client…</option>'}</select></label>
       ${!v&&d.client?`<p class="note full" style="margin:-6px 0 0">Client noté à la main : ${esc(d.client)} ${esc(d.contact)}</p>`:""}
       <div class="grid2 full" id="newcli" hidden><label>Nom du nouveau client<input name="_cnom"></label><label>Téléphone du client<input name="_ctel" type="tel"></label>
-      <label>Région du client<select name="_creg"><option value="">—</option>${REGIONS.map(g=>`<option>${esc(g)}</option>`).join("")}</select></label>
       <label>Préfecture (commune à Conakry)<select name="_cpref"></select></label>
       <label class="full">Sous-préfecture<select name="_csp"></select></label></div>`}
     if(t==="pref"||t==="sp")return `<label>${l}<select name="${k}" data-cur="${esc(v)}"${dis?' disabled data-ro="1"':""}></select></label>`;
@@ -507,8 +506,8 @@ function openForm(kind,id){
   if($("#fbox"))filesBox(pjColl,id,exists);
   $("#x").onclick=$("#cancel").onclick=closeModal;
   const q=n=>frm.querySelector(`[name=${n}]`);
-  if(q("_creg"))linkLieu(q("_creg"),q("_cpref"),q("_csp"));
-  if(kind==="cli"||kind==="rep")linkLieu(q("region"),q("prefecture"),q("sousPrefecture"));
+  if(q("_cpref"))linkLieu(null,q("_cpref"),q("_csp"));
+  if(kind==="cli"||kind==="rep")linkLieu(null,q("prefecture"),q("sousPrefecture"));
   const cs=frm.querySelector("[name=clientId]");if(cs)cs.onchange=()=>{const n=cs.value==="__new";$("#newcli").hidden=!n;if(n)frm._cnom.focus()};
   frm.querySelectorAll("[data-money]").forEach(moneyInput);
   const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
@@ -530,11 +529,13 @@ function openForm(kind,id){
       let cid=String(f.get("clientId")||"");
       if(cid==="__new"){const nom=String(f.get("_cnom")||"").trim();if(!nom){btn.disabled=false;frm._cnom.focus();return toast("Indiquez le nom du nouveau client")}
         const g=k=>String(f.get(k)||"").trim();
-        cid=newId();enqueue("clients",cid,{nom,tel:g("_ctel"),region:g("_creg"),prefecture:g("_cpref"),sousPrefecture:g("_csp"),maj:new Date().toISOString()},nom)}
+        cid=newId();enqueue("clients",cid,{nom,tel:g("_ctel"),region:prefRegion(g("_cpref")),prefecture:g("_cpref"),sousPrefecture:g("_csp"),maj:new Date().toISOString()},nom)}
       const c=S.cli.find(x=>x.id===cid);
       if(cid||!d.client){o.clientId=cid;o.client=c?.nom||"";o.contact=c?.tel||""}
       if(!ADM())o.collab=MYCOL();
     }
+    // La région n'est plus saisie : elle est déduite de la préfecture (utile aux statistiques).
+    if((kind==="rep"||kind==="cli")&&o.prefecture&&prefRegion(o.prefecture))o.region=prefRegion(o.prefecture);
     if(d.exemple)o.exemple=true;o.maj=new Date().toISOString();
     const ok=await saveDoc(COLL[kind],id,o,o.titre||o.nom);
     closeModal();toast(ok?"Enregistré":"Enregistré sur ce téléphone : envoi automatique dès que le réseau revient");

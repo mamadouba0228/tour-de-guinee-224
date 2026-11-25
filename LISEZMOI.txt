@@ -74,6 +74,19 @@ Mise à jour depuis la version 1
    - Onglet Clients : le bouton « Créer les fiches clients correspondantes » transforme
      les clients écrits à la main dans les anciens reportages en fiches clients.
 
+Reçus et factures (réservés au propriétaire)
+   - Le compte créé à la « Première installation » est le PROPRIÉTAIRE. Lui seul peut
+     émettre les reçus (impression / PDF, ou envoi par WhatsApp) et modifier les
+     informations imprimées dessus. Aucun autre administrateur ne peut le rétrograder,
+     le supprimer ni changer son mot de passe.
+   - Votre signature est le fichier data/signature.svg (déjà dans ce dossier). Le dossier
+     data est protégé : le serveur ne donne la signature qu'au propriétaire connecté.
+     Pour la changer, remplacez ce fichier (ou mettez un data/signature.png).
+   - Envoi WhatsApp : ouvrez un reportage > « Envoyer par WhatsApp ». Sur téléphone,
+     choisissez WhatsApp puis le client : le PDF est joint. Sur ordinateur, le PDF est
+     téléchargé et la discussion WhatsApp du client s'ouvre avec le message : joignez-y
+     le PDF. Chaque reçu émis est noté dans l'historique du reportage.
+
 Sauvegarde
    - Réglages > Sauvegarde > « Télécharger une sauvegarde (.json) » : toutes les fiches.
      À faire régulièrement et à garder sur votre ordinateur.

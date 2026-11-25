@@ -134,6 +134,7 @@ const VIEWS_ADM=["tableau","reportages","clients","stats","collaborateurs","vers
 const VIEWS_COL=["tableau","reportages","versements","reglages"];
 const S={rep:[],col:[],ver:[],cli:[],files:[],cfg:{taux:10000},stockage:null,ready:0,me:null,offline:false,cacheT:0};
 const ADM=()=>S.me?.role==="admin";
+const OWNER=()=>ADM()&&!!S.me?.owner; // compte propriétaire : seul à émettre les reçus
 const MYCOL=()=>S.me?.collab||"";
 let view="tableau",F={q:"",st:"",co:"",pay:""},ST={an:null,m:"prix"},installEvt=null;
 
@@ -336,14 +337,14 @@ function vCfg(){
   ${ADM()?`
   <div class="sec"><h3>Taux de change</h3><form id="frmTaux" class="row"><label style="flex:1 1 240px">1 € = combien de GNF ?<input name="taux" type="text" inputmode="numeric" autocomplete="off" data-money value="${esc(grp(c.taux))}"></label><button class="pri" style="align-self:end">Enregistrer le taux</button></form>
   <p class="note">Chaque nouveau reportage garde le taux du jour où il est créé : changer le taux ici ne modifie pas les montants en euros des anciens reportages.</p></div>
-  <div class="sec"><h3>Informations sur les reçus et factures</h3><form id="frmEnt" class="grid2">
+  ${OWNER()?`<div class="sec"><h3>Informations sur les reçus et factures</h3><p class="note">Vous êtes le propriétaire : vous seul émettez les reçus et les envoyez par WhatsApp. Votre signature est gardée dans le dossier protégé data du serveur (fichier signature.svg).</p><form id="frmEnt" class="grid2">
   <label>Nom de l’entreprise<input name="entreprise" value="${esc(c.entreprise||"Tour de Guinée 224")}"></label><label>Téléphone<input name="entTel" type="tel" value="${esc(c.entTel)}"></label>
   <label>Adresse<input name="entAdresse" value="${esc(c.entAdresse)}"></label><label>E-mail<input name="entEmail" type="email" value="${esc(c.entEmail)}"></label>
   <label class="full">Nom et fonction sous la signature<input name="entSignataire" placeholder="ex. Le directeur" value="${esc(c.entSignataire)}"></label>
   <label class="full">Mention en bas des factures (moyens de paiement, n° Orange Money…)<textarea name="entPied">${esc(c.entPied)}</textarea></label>
-  <div class="full"><button class="pri">Enregistrer</button></div></form></div>
+  <div class="full"><button class="pri">Enregistrer</button></div></form></div>`:""}
   <div class="sec"><h3>Comptes d’accès</h3><p class="note">Créez un compte par collaborateur et <strong>reliez-le à sa fiche collaborateur</strong> : il voit les reportages de toute l’équipe (sans aucun montant sur ceux des autres) et seulement ses propres versements, jamais les prix ni les marges. Il peut créer des reportages et modifier les siens : statut, frais déclarés, photos. Envoyez-lui son identifiant et son mot de passe par WhatsApp.</p>
-  <p class="note">Un <strong>administrateur</strong> voit et modifie tout, y compris les comptes. Vous pouvez changer le rôle d’un compte dans la liste ci-dessous ; il reste toujours au moins un administrateur.</p>
+  <p class="note">Un <strong>administrateur</strong> voit et modifie tout, y compris les comptes. Vous pouvez changer le rôle d’un compte dans la liste ci-dessous ; il reste toujours au moins un administrateur. Le compte <strong>propriétaire</strong> (le premier administrateur) est le seul à émettre les reçus ; personne d’autre ne peut le modifier.</p>
   <div id="users"><div class="note">Chargement…</div></div>
   <form id="uadd" class="grid2" style="margin-top:12px"><label>Nom<input name="nom" required></label><label>Identifiant<input name="login" required autocomplete="off" autocapitalize="none" pattern="[A-Za-z0-9._\\-]{3,40}" title="3 à 40 lettres sans accent, chiffres, point, tiret" placeholder="ex. mamadou"></label>
   <label>Mot de passe (8 caractères min.)<input name="password" required minlength="8" autocomplete="new-password"></label>
@@ -364,7 +365,7 @@ async function loadUsers(){
   const box=$("#users");if(!box)return;
   try{const {users}=await api("users");
     const sel=(u)=>`<select data-ulink="${u.id}" aria-label="Fiche de ${esc(u.nom)}"><option value="">— non relié —</option>${S.col.slice().sort(byNom).map(c=>`<option value="${esc(c.id)}" ${c.id===u.collab?"selected":""}>${esc(c.nom)}</option>`).join("")}</select>`;
-    box.innerHTML=`<table class="stack"><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Fiche collaborateur</th><th></th></tr></thead><tbody>${users.map(u=>`<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${+u.id===S.me.id?"Administrateur (vous)":`<select data-urole="${u.id}" aria-label="Rôle de ${esc(u.nom)}"><option value="collab" ${u.role!=="admin"?"selected":""}>Collaborateur</option><option value="admin" ${u.role==="admin"?"selected":""}>Administrateur</option></select>`}</td><td>${u.role==="admin"?'<span class="note">voit tout</span>':sel(u)}</td><td style="text-align:end">${+u.id===S.me.id?"":`<button data-upw="${u.id}">Nouveau mot de passe</button> <button class="dng" data-udel="${u.id}">Supprimer</button>`}</td></tr>`).join("")}</tbody></table>`;
+    box.innerHTML=`<table class="stack"><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Fiche collaborateur</th><th></th></tr></thead><tbody>${users.map(u=>`<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${+u.id===S.me.id?(+u.owner?"Propriétaire (vous)":"Administrateur (vous)"):+u.owner?"<strong>Propriétaire</strong>":`<select data-urole="${u.id}" aria-label="Rôle de ${esc(u.nom)}"><option value="collab" ${u.role!=="admin"?"selected":""}>Collaborateur</option><option value="admin" ${u.role==="admin"?"selected":""}>Administrateur</option></select>`}</td><td>${u.role==="admin"?'<span class="note">voit tout</span>':sel(u)}</td><td style="text-align:end">${+u.id===S.me.id||+u.owner?"":`<button data-upw="${u.id}">Nouveau mot de passe</button> <button class="dng" data-udel="${u.id}">Supprimer</button>`}</td></tr>`).join("")}</tbody></table>`;
     box.querySelectorAll("[data-ulink]").forEach(s=>s.onchange=async()=>{try{await api("user_link",{body:{id:+s.dataset.ulink,collab:s.value}});toast("Compte relié")}catch(e){err(e)}});
     box.querySelectorAll("[data-urole]").forEach(s=>s.onchange=async()=>{const u=users.find(x=>+x.id===+s.dataset.urole);
       if(s.value==="admin"&&!confirm(`Donner le rôle d’administrateur à ${u.nom} ? Il verra tous les montants et pourra gérer les comptes, les versements et les suppressions.`)){s.value=u.role;return}
@@ -427,7 +428,7 @@ function openForm(kind,id){
   ${kind==="cli"&&!isNew?cliReps(id):""}
   ${d._maj?`<p class="note full" style="margin:0">Dernière modification le ${dtt(d._maj)}${d._par?" par "+esc(d._par):""}.</p>`:""}
   ${ADM()&&exists?'<details class="full" id="hist"><summary>Historique des modifications</summary><div class="note">Chargement…</div></details>':""}</div>
-  <div class="row" style="margin-top:16px">${exists&&ADM()?'<button type="button" class="dng" id="del">Supprimer</button>':""}${kind==="rep"&&ADM()&&!isNew?'<button type="button" id="recu">Reçu / facture</button>':""}<span class="sp"></span><button type="button" id="cancel">${edit?"Annuler":"Fermer"}</button>${edit?'<button class="pri" type="submit">Enregistrer</button>':""}</div></form>`;
+  <div class="row" style="margin-top:16px">${exists&&ADM()?'<button type="button" class="dng" id="del">Supprimer</button>':""}${kind==="rep"&&OWNER()&&exists?'<button type="button" id="recuPrint">Reçu : imprimer / PDF</button><button type="button" id="recuWa">Envoyer par WhatsApp</button>':""}<span class="sp"></span><button type="button" id="cancel">${edit?"Annuler":"Fermer"}</button>${edit?'<button class="pri" type="submit">Enregistrer</button>':""}</div></form>`;
   $("#modal").hidden=false;
   const frm=$("#frm");(frm.querySelector("input:not([disabled]),select:not([disabled])")||$("#x")).focus();
   if($("#fbox"))filesBox(pjColl,id,exists);
@@ -439,7 +440,11 @@ function openForm(kind,id){
     const vf=$("#valFrais");if(vf)vf.onclick=()=>{frm.frais.value=grp(g("fraisDeclares"));calc()}};
   frm.oninput=calc;calc();
   const h=$("#hist");if(h)h.ontoggle=async()=>{if(!h.open||h.dataset.l)return;h.dataset.l=1;try{const {hist}=await api("hist",{q:{coll:COLL[kind],id}});h.lastElementChild.outerHTML=`<div>${histHTML(hist)}</div>`}catch(e){h.lastElementChild.textContent=e.offline?"Indisponible hors connexion.":"Impossible de charger l’historique."}};
-  if($("#recu"))$("#recu").onclick=()=>recu({...d,id}); // valeurs enregistrées de la fiche
+  if($("#recuPrint")){ // valeurs enregistrées de la fiche ; images préchargées pour que le partage parte tout de suite
+    const pre=Promise.all([loadImg("logo.png"),loadSig().then(loadImg)]);
+    $("#recuPrint").onclick=()=>recuPrint({...d,id});
+    $("#recuWa").onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{await recuWhatsApp({...d,id},pre)}catch(x){toast("Envoi impossible : "+x.message)}finally{b.disabled=false}};
+  }
   if($("#del"))$("#del").onclick=e=>{const b=e.currentTarget;if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmer la suppression";return}
     b.disabled=true;api("del",{body:{coll:COLL[kind],id}}).then(()=>{closeModal();toast("Supprimé");sync()}).catch(x=>{b.disabled=false;err(x)})};
   frm.onsubmit=async e=>{e.preventDefault();const f=new FormData(frm),o={};
@@ -495,35 +500,119 @@ async function shrink(file){
     const b=await new Promise(r=>c.toBlob(r,"image/jpeg",.82));return b&&b.size<file.size?b:file}catch(_){return file}
 }
 
-/* ---------- Reçu / facture imprimable ---------- */
-function recu(r){
+/* ---------- Reçu / facture : réservé au compte propriétaire ---------- */
+function recuData(r){
   const c=S.cfg,prix=num(r.prix),enc=num(r.encaisse),reste=prix-enc,paye=prix>0&&reste<=0;
-  const cli=S.cli.find(x=>x.id===r.clientId);const nom=cli?.nom||r.client||"",tel=cli?.tel||r.contact||"",adr=cli?.adresse||"";
-  const no="TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase();
-  const plat=[].concat(r.plateformes||[]).join(" et ");
-  const t=num(r.taux)||num(c.taux);
+  const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et "),t=num(r.taux)||num(c.taux);
+  return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",adr:cli?.adresse||"",
+    no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
+    detail:[r.village,r.region].filter(Boolean).join(", ")+(r.date?" · tournage le "+dt(r.date):"")+(plat?" · diffusion sur "+plat:""),
+    eurTxt:t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""};
+}
+// La signature est gardée dans le dossier protégé du serveur, qui ne la donne qu'au propriétaire.
+let sigP=null;
+function loadSig(){
+  return sigP||=(async()=>{try{
+    if(window.TDG_DEMO){await api("signature");return null}
+    const r=await fetch("api.php?a=signature",{credentials:"same-origin"});
+    return r.ok?URL.createObjectURL(await r.blob()):null}catch(_){return null}})();
+}
+const loadImg=src=>new Promise(res=>{if(!src)return res(null);const i=new Image();i.onload=()=>res(i);i.onerror=()=>res(null);i.src=src});
+function logRecu(r,moyen,no){api("recu",{body:{id:r.id,moyen,numero:no}}).catch(e=>{if(!e.offline)toast(e.message)})}
+
+async function recuPrint(r){
+  const D=recuData(r),c=D.c,sig=await loadSig();
+  logRecu(r,"impression",D.no);
   $("#print").innerHTML=`<div class="inv"><div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap">
   <div><h1>${esc(c.entreprise||"Tour de Guinée 224")}</h1><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div>
-  <div style="text-align:right"><div style="font:800 20pt Archivo,Arial">${paye?"REÇU":"FACTURE"}</div><div>N° ${esc(no)}</div><div>Émis le ${dt(today())}</div></div></div>
+  <div style="text-align:right"><div style="font:800 20pt Archivo,Arial">${D.titre}</div><div>N° ${esc(D.no)}</div><div>Émis le ${dt(today())}</div></div></div>
   <div class="flag"></div>
-  <p><strong>${paye?"Reçu de":"Facturé à"} :</strong><br>${esc(nom)||"—"}${tel?"<br>"+esc(tel):""}${adr?"<br>"+esc(adr):""}</p>
+  <p><strong>${D.paye?"Reçu de":"Facturé à"} :</strong><br>${esc(D.nom)||"—"}${D.tel?"<br>"+esc(D.tel):""}${D.adr?"<br>"+esc(D.adr):""}</p>
   <table><thead><tr><th>Désignation</th><th class="n">Montant</th></tr></thead><tbody>
-  <tr><td>Reportage « ${esc(r.titre)} »<br><span style="color:#555">${[r.village,r.region].filter(Boolean).map(esc).join(", ")}${r.date?" · tournage le "+dt(r.date):""}${plat?" · diffusion sur "+esc(plat):""}</span></td><td class="n">${gnf(prix)}</td></tr>
-  <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(prix)}</strong></td></tr>
-  <tr><td style="text-align:right">Déjà payé</td><td class="n">${gnf(enc)}</td></tr>
-  <tr><td style="text-align:right"><strong>${paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,reste))}</strong></td></tr></tbody></table>
-  <p style="color:#555">${t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""}</p>
-  ${paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
+  <tr><td>Reportage « ${esc(r.titre)} »<br><span style="color:#555">${esc(D.detail)}</span></td><td class="n">${gnf(D.prix)}</td></tr>
+  <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(D.prix)}</strong></td></tr>
+  <tr><td style="text-align:right">Déjà payé</td><td class="n">${gnf(D.enc)}</td></tr>
+  <tr><td style="text-align:right"><strong>${D.paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,D.reste))}</strong></td></tr></tbody></table>
+  <p style="color:#555">${esc(D.eurTxt)}</p>
+  ${D.paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:30px;break-inside:avoid">
   <p style="margin:0;white-space:pre-line;color:#333;flex:1">${esc(c.entPied||"")}</p>
   <div style="width:240px;text-align:center;flex:none">
     <img src="logo.png" alt="Tour de Guinée 224" style="display:block;height:80px;width:auto;margin:0 auto 6px">
-    <img src="signature.svg" alt="Signature" style="display:block;height:72px;width:auto;margin:0 auto" onerror="this.outerHTML='<div style=&quot;height:72px&quot;></div>'">
+    ${sig?`<img src="${sig}" alt="Signature" style="display:block;height:72px;width:auto;margin:0 auto">`:'<div style="height:72px"></div>'}
     <div style="border-top:1px solid #999;padding-top:4px;font-size:10pt;color:#444">${esc(c.entSignataire||"Signature")}</div>
   </div></div></div>`;
-  // Attendre que le logo soit chargé, sinon il manquerait sur le PDF.
+  // Attendre que les images soient chargées, sinon elles manqueraient sur le PDF.
   const imgs=[...document.querySelectorAll("#print img")].map(i=>i.decode().catch(()=>{}));
-  Promise.race([Promise.all(imgs),new Promise(r=>setTimeout(r,3000))]).then(()=>window.print());
+  await Promise.race([Promise.all(imgs),new Promise(res=>setTimeout(res,3000))]);
+  window.print();
+}
+
+// Dessine le reçu sur une page A4 (150 ppp) pour en faire un PDF à partager.
+function drawRecu(D,r,logo,sig){
+  const W=1240,H=1754,M=100,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const x=cv.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,W,H);
+  const T=(s,X,Y,{w=400,s:z=26,c="#111",a="left"}={})=>{x.font=`${w} ${z}px Inter, Arial, sans-serif`;x.fillStyle=c;x.textAlign=a;x.fillText(String(s),X,Y)};
+  const wrap=(s,maxW,w,z)=>{x.font=`${w} ${z}px Inter, Arial, sans-serif`;const out=[];
+    for(const p of String(s||"").split("\n")){let l="";for(const m of p.split(" ")){const t=l?l+" "+m:m;if(x.measureText(t).width>maxW&&l){out.push(l);l=m}else l=t}out.push(l)}return out};
+  const rule=Y=>{x.fillStyle="#cccccc";x.fillRect(M,Y,W-2*M,2)};
+  let y=150;
+  T(D.c.entreprise||"Tour de Guinée 224",M,y,{w:800,s:52,c:"#00804f"});
+  let yy=y+46;for(const l of [D.c.entAdresse,D.c.entTel,D.c.entEmail].filter(Boolean)){T(l,M,yy,{s:26,c:"#333"});yy+=36}
+  T(D.titre,W-M,y,{w:800,s:56,a:"right"});T("N° "+D.no,W-M,y+46,{s:26,a:"right"});T("Émis le "+dt(today()),W-M,y+82,{s:26,a:"right"});
+  y=Math.max(yy,y+100)+10;
+  ["#ce1126","#fcd116","#009460"].forEach((col,i)=>{x.fillStyle=col;x.fillRect(M+i*(W-2*M)/3,y,(W-2*M)/3,12)});
+  y+=74;T((D.paye?"Reçu de":"Facturé à")+" :",M,y,{w:700,s:28});
+  for(const l of [D.nom||"—",D.tel,D.adr].filter(Boolean)){y+=40;T(l,M,y,{s:28})}
+  y+=80;T("Désignation",M+10,y,{w:700,s:24});T("Montant",W-M-10,y,{w:700,s:24,a:"right"});y+=18;rule(y);
+  y+=48;const l1=wrap(`Reportage « ${r.titre} »`,760,400,28);
+  l1.forEach((l,i)=>T(l,M+10,y+i*38,{s:28}));T(gnf(D.prix),W-M-10,y,{s:28,a:"right"});y+=l1.length*38;
+  const l2=wrap(D.detail,760,400,24);l2.forEach((l,i)=>T(l,M+10,y+i*34,{s:24,c:"#555"}));y+=l2.length*34+10;rule(y);
+  const row=(lab,val,b)=>{y+=56;T(lab,W-M-320,y,{w:b?700:400,s:28,a:"right"});T(val,W-M-10,y,{w:b?700:400,s:28,a:"right"});y+=24;rule(y)};
+  row("Total",gnf(D.prix),1);row("Déjà payé",gnf(D.enc));row(D.paye?"Solde":"Reste à payer",gnf(Math.max(0,D.reste)),1);
+  y+=60;if(D.eurTxt){T(D.eurTxt,M,y,{s:24,c:"#555"});y+=46}
+  if(D.paye){T("Payé intégralement. Merci pour votre confiance.",M,y,{w:700,s:28});y+=40}
+  // Bas de page : mention à gauche ; à droite le logo, puis la signature dessous.
+  const bw=380,bx=W-M-bw;let by=y+70;
+  if(logo){const h=140,w=logo.naturalWidth/logo.naturalHeight*h;x.drawImage(logo,bx+(bw-w)/2,by,w,h)}
+  by+=150;
+  if(sig){const k=sig.naturalWidth/sig.naturalHeight,w=Math.min(bw,130*k),h=w/k;x.drawImage(sig,bx+(bw-w)/2,by+130-h,w,h)}
+  by+=136;x.fillStyle="#999";x.fillRect(bx,by,bw,2);T(D.c.entSignataire||"Signature",bx+bw/2,by+34,{s:22,c:"#444",a:"center"});
+  const pied=wrap(D.c.entPied,bx-M-40,400,24);pied.forEach((l,i)=>T(l,M,by+34-(pied.length-1-i)*34,{s:24,c:"#333"}));
+  return cv;
+}
+// PDF d'une page contenant l'image JPEG du reçu (aucune bibliothèque externe).
+function jpegToPdf(jpg,w,h){
+  const enc=new TextEncoder(),chunks=[],offs=[];let len=0;
+  const add=b=>{if(typeof b==="string")b=enc.encode(b);chunks.push(b);len+=b.length};
+  const obj=(n,s,stream)=>{offs[n]=len;add(`${n} 0 obj\n${s}\n`);if(stream){add("stream\n");add(stream);add("\nendstream\n")}add("endobj\n")};
+  const PW=595.28,PH=841.89,content=`q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+  add("%PDF-1.4\n");
+  obj(1,"<< /Type /Catalog /Pages 2 0 R >>");
+  obj(2,"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  obj(4,`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`,jpg);
+  obj(5,`<< /Length ${content.length} >>`,content);
+  const xr=len;
+  add(`xref\n0 6\n0000000000 65535 f \n${[1,2,3,4,5].map(n=>String(offs[n]).padStart(10,"0")+" 00000 n \n").join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
+  return new Blob(chunks,{type:"application/pdf"});
+}
+// Numéro WhatsApp du client : 9 chiffres guinéens → indicatif 224 ajouté.
+const waNum=t=>{let d=String(t||"").replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.length===9)d="224"+d;return d.length>=11?d:""};
+async function recuWhatsApp(r,pre){
+  const D=recuData(r),[logo,sig]=await pre;
+  await document.fonts?.ready;
+  const cv=drawRecu(D,r,logo,sig);
+  const jpg=await new Promise(res=>cv.toBlob(res,"image/jpeg",.9));
+  const pdf=new File([jpegToPdf(new Uint8Array(await jpg.arrayBuffer()),cv.width,cv.height)],`${D.paye?"Recu":"Facture"}-${D.no}.pdf`,{type:"application/pdf"});
+  const msg=`Bonjour ${D.nom||""}, voici votre ${D.paye?"reçu":"facture"} N° ${D.no} pour le reportage « ${r.titre} » : ${gnf(D.prix)}${D.paye?", payé intégralement. Merci !":", reste à payer "+gnf(Math.max(0,D.reste))+"."} — ${D.c.entreprise||"Tour de Guinée 224"}`;
+  logRecu(r,"WhatsApp",D.no);
+  // Téléphone : feuille de partage → choisir WhatsApp puis le client ; le PDF est joint.
+  if(navigator.canShare?.({files:[pdf]})){try{await navigator.share({files:[pdf],text:msg,title:pdf.name});return}catch(e){if(e.name==="AbortError")return}}
+  // Ordinateur : le PDF est téléchargé et la discussion WhatsApp du client s'ouvre avec le message.
+  const a=document.createElement("a");a.href=URL.createObjectURL(pdf);a.download=pdf.name;document.body.append(a);a.click();setTimeout(()=>a.remove(),2000);
+  window.open(`https://wa.me/${waNum(D.tel)}?text=${encodeURIComponent(msg)}`,"_blank","noopener");
+  toast("PDF téléchargé : joignez-le dans la discussion WhatsApp qui vient de s’ouvrir.");
 }
 
 /* ---------- Exports ---------- */

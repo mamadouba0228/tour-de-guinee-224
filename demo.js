@@ -46,7 +46,7 @@
     docs.config.main = doc({ taux: 10000, entreprise: "Tour de Guinée 224", entTel: "+224 600 00 00 00", entAdresse: "Conakry, Guinée", entPied: "Paiement par Orange Money ou MTN MoMo.\nMerci de votre confiance." });
     return {
       users: [
-        { id: 1, nom: "Administrateur démo", login: "admin", pw: "admin1234", role: "admin", collab: "" },
+        { id: 1, nom: "Administrateur démo", login: "admin", pw: "admin1234", role: "admin", collab: "", owner: true },
         { id: 2, nom: "Alpha (démo)", login: "alpha", pw: "alpha1234", role: "collab", collab: "c1" },
         { id: 3, nom: "Binta (démo)", login: "binta", pw: "binta1234", role: "collab", collab: "c2" }
       ],
@@ -56,12 +56,15 @@
   let db;
   try { db = JSON.parse(localStorage.getItem(K) || "null"); } catch (_) { db = null; }
   if (!db) db = seed();
+  // Démo créée avant l'arrivée du compte propriétaire : le premier administrateur le devient.
+  if (!db.users.some(z => z.owner)) { const a = db.users.find(z => z.role === "admin"); if (a) a.owner = true; }
   const save = () => { try { localStorage.setItem(K, JSON.stringify(db)); return true; } catch (_) { return false; } };
   save();
 
   const R = (json, status = 200) => ({ status, json });
   const E = (error, status = 400) => R({ error }, status);
-  const me = () => { const u = db.users.find(x => x.id === +localStorage.getItem(KS)); return u ? { id: u.id, nom: u.nom, login: u.login, role: u.role, collab: u.collab || "" } : null; };
+  const me = () => { const u = db.users.find(x => x.id === +localStorage.getItem(KS)); return u ? { id: u.id, nom: u.nom, login: u.login, role: u.role, collab: u.collab || "", owner: !!u.owner && u.role === "admin" } : null; };
+  const ownerGuard = (u, id) => { const t = db.users.find(z => z.id === +id); return t && t.owner && t.id !== u.id ? E("Ce compte est celui du propriétaire : lui seul peut le modifier.", 403) : null; };
   const isAdmin = u => u.role === "admin";
   const isMine = (u, d) => !!u.collab && d.collab === u.collab;
   // Comme api.php : un collaborateur voit tous les reportages, mais seulement ses versements.
@@ -142,6 +145,7 @@
           } else return E("Vous ne pouvez pas modifier cette rubrique", 403);
         }
         if (coll === "clients" && !String(data.nom ?? old?.nom ?? "").trim()) return E("Le nom du client est obligatoire");
+        if (coll === "config" && !u.owner) data = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith("ent")));
         const merged = { ...(old || {}), ...data };
         db.docs[coll][id] = { data: merged, maj: now(), par: u.id };
         const ch = diff(old || {}, merged);
@@ -211,7 +215,16 @@
         journal(u, "", "", "restauration d’une sauvegarde", { fiches: [null, String(n)] }); save();
         return R({ n });
       }
-      case "users": if ((x = need(true))) return x; return R({ users: db.users.map(({ pw, ...z }) => z) });
+      case "users": if ((x = need(true))) return x; return R({ users: db.users.map(({ pw, ...z }) => ({ ...z, owner: z.owner ? 1 : 0 })).sort((a, b) => b.owner - a.owner) });
+      case "recu": {
+        if ((x = need(true))) return x;
+        if (!u.owner) return E("Seul le propriétaire peut émettre les reçus.", 403);
+        if (!db.docs.reportages[body.id]) return E("Reportage introuvable", 404);
+        journal(u, "reportages", body.id, "reçu émis", { envoi: [null, body.moyen === "WhatsApp" ? "WhatsApp" : "impression"], "numéro": [null, short(body.numero)] }); save();
+        return R({ ok: true });
+      }
+      // La vraie signature n'est jamais publiée dans la démo.
+      case "signature": if ((x = need(true))) return x; return u.owner ? E("Pas de signature dans la démo", 404) : E("Réservé au propriétaire", 403);
       case "user_add": {
         if ((x = need(true))) return x;
         const login = String(body.login || "").trim().toLowerCase(), nom = String(body.nom || "").trim(), pw = String(body.password || "");
@@ -224,6 +237,7 @@
       }
       case "user_link": {
         if ((x = need(true))) return x;
+        if ((x = ownerGuard(u, body.id))) return x;
         const z = db.users.find(v => v.id === +body.id);
         if (z && z.role === "collab") { z.collab = String(body.collab || ""); save(); }
         return R({ ok: true });
@@ -233,6 +247,7 @@
         const z = db.users.find(v => v.id === +body.id), role = body.role === "admin" ? "admin" : "collab";
         if (+body.id === u.id) return E("Vous ne pouvez pas changer votre propre rôle");
         if (!z) return E("Compte introuvable", 404);
+        if ((x = ownerGuard(u, body.id))) return x;
         if (z.role === "admin" && role !== "admin" && db.users.filter(v => v.role === "admin").length <= 1) return E("Il doit rester au moins un administrateur");
         if (z.role !== role) journal(u, "comptes", z.login, "rôle modifié", { "rôle": [z.role, role] });
         z.role = role; if (role === "admin") z.collab = ""; save();
@@ -242,6 +257,7 @@
         if ((x = need())) return x;
         const id = +(body.id || u.id), z = db.users.find(v => v.id === id);
         if (id !== u.id && !isAdmin(u)) return E("Interdit", 403);
+        if ((x = ownerGuard(u, id))) return x;
         if (id === u.id && z.pw !== body.ancien) return E("Mot de passe actuel incorrect", 403);
         if (String(body.password || "").length < 8) return E("8 caractères minimum");
         z.pw = String(body.password); save();
@@ -250,6 +266,7 @@
       case "user_del": {
         if ((x = need(true))) return x;
         if (+body.id === u.id) return E("Vous ne pouvez pas supprimer votre propre compte");
+        if ((x = ownerGuard(u, body.id))) return x;
         db.users = db.users.filter(v => v.id !== +body.id); save();
         return R({ ok: true });
       }
@@ -263,7 +280,7 @@
     const el = document.getElementById("demobar") || document.body.insertBefore(Object.assign(document.createElement("div"), { id: "demobar" }), document.body.firstChild);
     el.style.cssText = "background:#fcd116;color:#1b1513;padding:8px max(4vw,16px);font:14px/1.4 Inter,system-ui,sans-serif;display:flex;gap:8px;flex-wrap:wrap;align-items:center";
     const b = "font:600 13px Inter,sans-serif;min-height:34px;padding:0 10px;border-radius:8px;border:1px solid #1b151340;background:#fff;color:#1b1513;cursor:pointer";
-    el.innerHTML = `<strong>MODE DÉMO</strong><span style="flex:1 1 260px">Données fictives, gardées dans ce navigateur. Comptes : <code>admin</code> / <code>admin1234</code> · <code>alpha</code> / <code>alpha1234</code> (collaborateur). ${u ? "Connecté : " + u.nom.replace(/[<>&]/g, "") : ""}</span>
+    el.innerHTML = `<strong>MODE DÉMO</strong><span style="flex:1 1 260px">Données fictives, gardées dans ce navigateur. Comptes : <code>admin</code> / <code>admin1234</code> (propriétaire) · <code>alpha</code> / <code>alpha1234</code> (collaborateur). ${u ? "Connecté : " + u.nom.replace(/[<>&]/g, "") : ""}</span>
       <button style="${b}" data-r="1">Voir en administrateur</button><button style="${b}" data-r="2">Voir en collaborateur</button>
       <button style="${b}${off ? ";background:#ce1126;color:#fff" : ""}" id="dnet" aria-pressed="${off}">${off ? "Réseau coupé : rétablir" : "Simuler une coupure réseau"}</button>
       <button style="${b}" id="dreset">Réinitialiser la démo</button>`;

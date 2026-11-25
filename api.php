@@ -36,16 +36,35 @@ function db(): PDO {
   $pdo->exec('CREATE TABLE IF NOT EXISTS journal (id INTEGER PRIMARY KEY, coll TEXT, docid TEXT, quand TEXT, par INTEGER, action TEXT, champs TEXT)');
   $pdo->exec('CREATE INDEX IF NOT EXISTS journal_doc ON journal (coll, docid)');
   $pdo->exec('CREATE TABLE IF NOT EXISTS files (id TEXT PRIMARY KEY, coll TEXT, docid TEXT, nom TEXT, mime TEXT, taille INTEGER, quand TEXT, par INTEGER)');
+  // Compte propriétaire : le seul qui émet les reçus (signature). Mise à jour d'une base existante :
+  // le premier administrateur créé devient propriétaire.
+  $cols = array_column($pdo->query('PRAGMA table_info(users)')->fetchAll(), 'name');
+  if (!in_array('owner', $cols, true)) $pdo->exec('ALTER TABLE users ADD COLUMN owner INTEGER NOT NULL DEFAULT 0');
+  if (!(int) $pdo->query('SELECT COUNT(*) FROM users WHERE owner = 1')->fetchColumn())
+    $pdo->exec("UPDATE users SET owner = 1 WHERE id = (SELECT MIN(id) FROM users WHERE role = 'admin')");
   return $pdo;
 }
 function me(): ?array {
   if (empty($_SESSION['uid'])) return null;
-  $s = db()->prepare('SELECT id, nom, login, role, collab FROM users WHERE id = ?');
+  $s = db()->prepare('SELECT id, nom, login, role, collab, owner FROM users WHERE id = ?');
   $s->execute([$_SESSION['uid']]);
   $u = $s->fetch();
   if (!$u) return null;
-  $u['id'] = (int) $u['id']; $u['collab'] = (string) ($u['collab'] ?? '');
+  $u['id'] = (int) $u['id']; $u['collab'] = (string) ($u['collab'] ?? ''); $u['owner'] = (bool) $u['owner'] && $u['role'] === 'admin';
   return $u;
+}
+function isOwner(array $u): bool { return !empty($u['owner']); }
+// Les autres comptes ne peuvent ni rétrograder, ni supprimer, ni changer le mot de passe du propriétaire.
+function protectOwner(array $u, int $targetId): void {
+  $s = db()->prepare('SELECT owner FROM users WHERE id = ?'); $s->execute([$targetId]);
+  if ((int) $s->fetchColumn() === 1 && $targetId !== $u['id']) fail('Ce compte est celui du propriétaire : lui seul peut le modifier.', 403);
+}
+function signatureFile(): ?string {
+  foreach (['signature.svg' => 'image/svg+xml', 'signature.png' => 'image/png'] as $f => $m) {
+    $p = dirname(DB_FILE) . '/' . $f;
+    if (is_file($p)) return $p;
+  }
+  return null;
 }
 function need(?string $role = null): array {
   $u = me();
@@ -150,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (($_SERVER['HTTP_X_TDG'] ?? '') !== '1') fail('Requête refusée', 403);
   if (!str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/')) $in = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
 }
-$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'user_role', 'upload', 'file_del', 'import'];
+$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'user_role', 'recu', 'upload', 'file_del', 'import'];
 if (in_array($a, $POST_ONLY, true) && $_SERVER['REQUEST_METHOD'] !== 'POST') fail('Méthode non autorisée', 405);
 
 switch ($a) {
@@ -165,7 +184,7 @@ switch ($a) {
     if (!hash_equals(SETUP_CODE, (string) ($in['code'] ?? ''))) { failedTry('#setup'); fail('Code d’installation incorrect', 403); }
     $nom = trim((string) ($in['nom'] ?? '')); $login = strtolower(trim((string) ($in['login'] ?? ''))); $pw = (string) ($in['password'] ?? '');
     if ($nom === '' || !preg_match('/^[a-z0-9._-]{3,40}$/', $login) || strlen($pw) < 8) fail('Nom, identifiant (lettres/chiffres, 3 caractères min.) et mot de passe (8 caractères min.) requis');
-    db()->prepare('INSERT INTO users (nom, login, hash, role, created) VALUES (?,?,?,?,?)')->execute([$nom, $login, password_hash($pw, PASSWORD_DEFAULT), 'admin', date('c')]);
+    db()->prepare('INSERT INTO users (nom, login, hash, role, created, owner) VALUES (?,?,?,?,?,1)')->execute([$nom, $login, password_hash($pw, PASSWORD_DEFAULT), 'admin', date('c')]);
     session_regenerate_id(true); $_SESSION['uid'] = (int) db()->lastInsertId();
     out(['me' => me()]);
 
@@ -232,6 +251,8 @@ switch ($a) {
       }
     }
     if ($coll === 'clients' && trim((string) ($data['nom'] ?? $old['nom'] ?? '')) === '') fail('Le nom du client est obligatoire');
+    // Les informations imprimées sur les reçus (ent…) ne sont modifiables que par le propriétaire.
+    if ($coll === 'config' && !isOwner($u)) foreach (array_keys($data) as $k) if (str_starts_with((string) $k, 'ent')) unset($data[$k]);
     $new = array_merge($old ?? [], $data);
     putDoc($u, $coll, $id, $new);
     $ch = diff($old ?? [], $new);
@@ -350,7 +371,29 @@ switch ($a) {
 
   case 'users':
     need('admin');
-    out(['users' => db()->query('SELECT id, nom, login, role, collab FROM users ORDER BY role, nom')->fetchAll()]);
+    out(['users' => db()->query('SELECT id, nom, login, role, collab, owner FROM users ORDER BY owner DESC, role, nom')->fetchAll()]);
+
+  case 'recu':
+    // Émission d'un reçu / d'une facture : réservé au propriétaire, et noté dans l'historique du reportage.
+    $u = need('admin');
+    if (!isOwner($u)) fail('Seul le propriétaire peut émettre les reçus.', 403);
+    $id = (string) ($in['id'] ?? '');
+    if (!getRow('reportages', $id)) fail('Reportage introuvable', 404);
+    $moyen = in_array($in['moyen'] ?? '', ['WhatsApp', 'impression'], true) ? $in['moyen'] : 'impression';
+    journal($u, 'reportages', $id, 'reçu émis', ['envoi' => [null, $moyen], 'numéro' => [null, short($in['numero'] ?? '')]]);
+    out(['ok' => true]);
+
+  case 'signature':
+    // La signature est dans data/ (protégé) : seul le propriétaire peut la récupérer.
+    $u = need('admin');
+    if (!isOwner($u)) fail('Réservé au propriétaire', 403);
+    $p = signatureFile();
+    if (!$p) fail('Pas de signature : placez signature.svg dans le dossier data', 404);
+    header('Content-Type: ' . (str_ends_with($p, '.png') ? 'image/png' : 'image/svg+xml'));
+    header('Cache-Control: private, no-store');
+    header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'");
+    readfile($p);
+    exit;
 
   case 'user_add':
     $u = need('admin');
@@ -369,6 +412,7 @@ switch ($a) {
     $u = need('admin');
     $id = (int) ($in['id'] ?? 0); $collab = (string) ($in['collab'] ?? '');
     if ($collab !== '' && !getRow('collaborateurs', $collab)) fail('Fiche collaborateur introuvable');
+    protectOwner($u, $id);
     db()->prepare('UPDATE users SET collab = ? WHERE id = ? AND role = \'collab\'')->execute([$collab, $id]);
     out(['ok' => true]);
 
@@ -376,6 +420,7 @@ switch ($a) {
     $u = need('admin');
     $id = (int) ($in['id'] ?? 0); $role = ($in['role'] ?? '') === 'admin' ? 'admin' : 'collab';
     if ($id === $u['id']) fail('Vous ne pouvez pas changer votre propre rôle');
+    protectOwner($u, $id);
     $s = db()->prepare('SELECT login, role FROM users WHERE id = ?'); $s->execute([$id]);
     $t = $s->fetch();
     if (!$t) fail('Compte introuvable', 404);
@@ -389,6 +434,7 @@ switch ($a) {
     $u = need();
     $id = (int) ($in['id'] ?? $u['id']); $pw = (string) ($in['password'] ?? '');
     if ($id !== $u['id'] && !isAdmin($u)) fail('Interdit', 403);
+    protectOwner($u, $id);
     if ($id === $u['id']) {
       // Pour son propre compte, il faut redonner l'ancien mot de passe.
       $s = db()->prepare('SELECT hash FROM users WHERE id = ?'); $s->execute([$id]);
@@ -404,6 +450,7 @@ switch ($a) {
     $u = need('admin');
     $id = (int) ($in['id'] ?? 0);
     if ($id === $u['id']) fail('Vous ne pouvez pas supprimer votre propre compte');
+    protectOwner($u, $id);
     db()->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
     out(['ok' => true]);
 

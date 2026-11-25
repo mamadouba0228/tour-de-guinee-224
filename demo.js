@@ -9,7 +9,7 @@
   const rid = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
   const COLLS = ["reportages", "collaborateurs", "versements", "config", "clients"];
   const COLLAB_FIELDS = ["titre", "village", "region", "prefecture", "sousPrefecture","clientId", "client", "contact", "date", "statut", "plateformes", "lien", "notes", "fraisDeclares", "maj"];
-  const HIDDEN = ["prix", "encaisse", "taux"];
+  const HIDDEN = ["prix", "encaisse", "taux", "modePaiement"];
 
   function seed() {
     const y = new Date().getFullYear(), d = (m, j) => `${y}-${String(m).padStart(2, "0")}-${String(j).padStart(2, "0")}`;
@@ -65,6 +65,12 @@
     const C = { k1: { region: "Mamou", prefecture: "Pita", sousPrefecture: "Timbi-Madina" }, k2: { region: "Conakry", prefecture: "Ratoma", adresse: "Kipé" }, k3: { region: "Kankan", prefecture: "Kankan", sousPrefecture: "Kankan-Centre" } };
     for (const [id, v] of Object.entries(C)) { const d = db.docs.clients?.[id]?.data; if (d && !d.region) Object.assign(d, v); }
     db.v = 2;
+  }
+  // Version 3 : mode de paiement du client sur quelques exemples.
+  if (db.v < 3) {
+    const M = { r1: ["Espèces", "Orange Money"], r2: ["MTN MoMo"], r8: ["Espèces"] };
+    for (const [id, m] of Object.entries(M)) { const d = db.docs.reportages?.[id]?.data; if (d && !d.modePaiement) d.modePaiement = m; }
+    db.v = 3;
   }
   // Démo créée avant l'arrivée du compte propriétaire : le premier administrateur le devient.
   if (!db.users.some(z => z.owner)) { const a = db.users.find(z => z.role === "admin"); if (a) a.owner = true; }

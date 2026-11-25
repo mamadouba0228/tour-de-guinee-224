@@ -198,6 +198,7 @@ const lieuRep=r=>[r.village,r.sousPrefecture&&r.sousPrefecture!==r.village&&"sou
 // Lignes de localisation d'un client (pour la fiche et les reçus).
 const lieuClient=c=>!c?[]:[c.prefecture&&(prefRegion(c.prefecture)==="Conakry"?"Commune : ":"Préfecture : ")+c.prefecture,c.sousPrefecture&&"Sous-préfecture : "+c.sousPrefecture,c.adresse&&"Adresse : "+c.adresse].filter(Boolean);
 const MOYENS=["Orange Money","MTN MoMo","Espèces","Transfert (WU, Ria…)","Autre"];
+const MOYENS_CLIENT=["Espèces","Orange Money","MTN MoMo","Virement bancaire","Autre"]; // comment le client a payé (reçus)
 const PLATEFORMES=["Facebook","TikTok"];
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
 const LABELS={tableau:"Tableau de bord",reportages:"Reportages",clients:"Clients",stats:"Statistiques",collaborateurs:"Collaborateurs",versements:"Versements",reglages:"Réglages"};
@@ -462,7 +463,7 @@ async function loadActivity(){const box=$("#activity");if(!box)return;try{const 
 // [clé, libellé, type, obligatoire, options, accès]  accès : "adm" = caché aux collaborateurs, "ro" = lecture seule pour eux
 const FORMS={
  rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
-  ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],
+  ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["modePaiement","Mode de paiement du client","chk",0,MOYENS_CLIENT,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
  col:[["nom","Nom complet","text",1],["fonction","Fonction (sur la carte)","text"],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,ZONES],["adresse","Adresse (ex. Hérico, Lélouma)","text"],["moyen","Moyen de paiement préféré","sel",0,MOYENS],
   ["numeroCarte","N° de carte (automatique si vide)","text"],["dateDelivrance","Date de délivrance de la carte","date"],["validite","Carte valable jusqu’au","date"],["notes","Notes","area"]],
@@ -590,7 +591,7 @@ async function shrink(file){
 function recuData(r){
   const c=S.cfg,prix=num(r.prix),enc=num(r.encaisse),reste=prix-enc,paye=prix>0&&reste<=0;
   const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et ");
-  return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
+  return {c,prix,enc,reste,paye,mode:[].concat(r.modePaiement||[]).filter(Boolean).join(", "),titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
     no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
     detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · "),
       r.collab&&S.col.some(x=>x.id===r.collab)&&"Reporter : "+colName(r.collab)].filter(Boolean).join("\n")};
@@ -619,6 +620,7 @@ async function recuPrint(r){
   <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(D.prix)}</strong></td></tr>
   <tr><td style="text-align:right">Déjà payé</td><td class="n">${gnf(D.enc)}</td></tr>
   <tr><td style="text-align:right"><strong>${D.paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,D.reste))}</strong></td></tr></tbody></table>
+  ${D.mode?`<p>Mode de paiement : <strong>${esc(D.mode)}</strong></p>`:""}
   ${D.paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:30px;break-inside:avoid">
   <p style="margin:0;white-space:pre-line;color:#333;flex:1">${esc(c.entPied||"")}</p>
@@ -657,6 +659,7 @@ function drawRecu(D,r,logo,sig){
   const row=(lab,val,b)=>{y+=56;T(lab,W-M-320,y,{w:b?700:400,s:28,a:"right"});T(val,W-M-10,y,{w:b?700:400,s:28,a:"right"});y+=24;rule(y)};
   row("Total",gnf(D.prix),1);row("Déjà payé",gnf(D.enc));row(D.paye?"Solde":"Reste à payer",gnf(Math.max(0,D.reste)),1);
   y+=60;
+  if(D.mode){x.font=`400 28px Inter, Arial, sans-serif`;x.fillStyle="#111";x.textAlign="left";const l="Mode de paiement : ";x.fillText(l,M,y);const w=x.measureText(l).width;T(D.mode,M+w,y,{w:700,s:28});y+=50}
   if(D.paye){T("Payé intégralement. Merci pour votre confiance.",M,y,{w:700,s:28});y+=40}
   // Bas de page : mention à gauche ; à droite le logo, puis la signature dessous.
   const bw=380,bx=W-M-bw;let by=y+70;
@@ -809,8 +812,8 @@ function dlCSV(name,head,rows){
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv;charset=utf-8"}));a.download=name;document.body.append(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast("Fichier CSV téléchargé (s’ouvre dans Excel ou Google Sheets)");
 }
-const csvRep=()=>dlCSV(`reportages-${today()}.csv`,["date","titre","village","region","client","telephone_client","collaborateur","statut","prix_gnf","encaisse_gnf","reste_gnf","remuneration_gnf","frais_valides_gnf","frais_declares_gnf","marge_gnf","plateformes","lien"],
-  S.rep.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r=>[r.date,r.titre,r.village,r.region,cliNom(r),cliTel(r),colName(r.collab),r.statut,num(r.prix),num(r.encaisse),num(r.prix)-num(r.encaisse),num(r.partCollab),num(r.frais),num(r.fraisDeclares),marge(r),(r.plateformes||[]).join(","),r.lien]));
+const csvRep=()=>dlCSV(`reportages-${today()}.csv`,["date","titre","village","region","client","telephone_client","collaborateur","statut","prix_gnf","encaisse_gnf","reste_gnf","remuneration_gnf","frais_valides_gnf","frais_declares_gnf","marge_gnf","mode_paiement","plateformes","lien"],
+  S.rep.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r=>[r.date,r.titre,r.village,r.region,cliNom(r),cliTel(r),colName(r.collab),r.statut,num(r.prix),num(r.encaisse),num(r.prix)-num(r.encaisse),num(r.partCollab),num(r.frais),num(r.fraisDeclares),marge(r),[].concat(r.modePaiement||[]).join(", "),(r.plateformes||[]).join(","),r.lien]));
 const csvVer=()=>dlCSV(`versements-${today()}.csv`,["date","collaborateur","moyen","reference","reportage","montant_gnf","notes"],
   S.ver.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(v=>[v.date,colName(v.collab),v.moyen,v.ref,S.rep.find(r=>r.id===v.rep)?.titre||"",num(v.montant),v.notes]));
 

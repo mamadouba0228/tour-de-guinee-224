@@ -20,7 +20,7 @@ const COLLS = ['reportages', 'collaborateurs', 'versements', 'config', 'clients'
 // frais validés, taux, collaborateur attribué) est réservé à l'administrateur.
 const COLLAB_REP_FIELDS = ['titre', 'village', 'region', 'prefecture', 'sousPrefecture','clientId', 'client', 'contact', 'date', 'statut', 'plateformes', 'lien', 'notes', 'fraisDeclares', 'maj'];
 // Ce qu'un collaborateur ne voit pas sur ses reportages.
-const COLLAB_REP_HIDDEN = ['prix', 'encaisse', 'taux'];
+const COLLAB_REP_HIDDEN = ['prix', 'encaisse', 'taux', 'modePaiement'];
 const TRIES_PER_LOGIN = 5;   // essais ratés autorisés par identifiant et par adresse IP…
 const TRIES_PER_IP = 20;     // …et par adresse IP, tous identifiants confondus
 const LOCK_SECONDS = 900;    // pendant 15 minutes

@@ -595,11 +595,10 @@ async function shrink(file){
 /* ---------- Reçu / facture : réservé au compte propriétaire ---------- */
 function recuData(r){
   const c=S.cfg,prix=num(r.prix),enc=num(r.encaisse),reste=prix-enc,paye=prix>0&&reste<=0;
-  const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et "),t=num(r.taux)||num(c.taux);
+  const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et ");
   return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
     no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
-    detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · ")].filter(Boolean).join("\n"),
-    eurTxt:t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""};
+    detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · ")].filter(Boolean).join("\n")};
 }
 // La signature est gardée dans le dossier protégé du serveur, qui ne la donne qu'au propriétaire.
 let sigP=null;
@@ -625,7 +624,6 @@ async function recuPrint(r){
   <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(D.prix)}</strong></td></tr>
   <tr><td style="text-align:right">Déjà payé</td><td class="n">${gnf(D.enc)}</td></tr>
   <tr><td style="text-align:right"><strong>${D.paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,D.reste))}</strong></td></tr></tbody></table>
-  <p style="color:#555">${esc(D.eurTxt)}</p>
   ${D.paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
   <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:30px;break-inside:avoid">
   <p style="margin:0;white-space:pre-line;color:#333;flex:1">${esc(c.entPied||"")}</p>
@@ -663,7 +661,7 @@ function drawRecu(D,r,logo,sig){
   const l2=wrap(D.detail,760,400,24);l2.forEach((l,i)=>T(l,M+10,y+i*34,{s:24,c:"#555"}));y+=l2.length*34+10;rule(y);
   const row=(lab,val,b)=>{y+=56;T(lab,W-M-320,y,{w:b?700:400,s:28,a:"right"});T(val,W-M-10,y,{w:b?700:400,s:28,a:"right"});y+=24;rule(y)};
   row("Total",gnf(D.prix),1);row("Déjà payé",gnf(D.enc));row(D.paye?"Solde":"Reste à payer",gnf(Math.max(0,D.reste)),1);
-  y+=60;if(D.eurTxt){T(D.eurTxt,M,y,{s:24,c:"#555"});y+=46}
+  y+=60;
   if(D.paye){T("Payé intégralement. Merci pour votre confiance.",M,y,{w:700,s:28});y+=40}
   // Bas de page : mention à gauche ; à droite le logo, puis la signature dessous.
   const bw=380,bx=W-M-bw;let by=y+70;

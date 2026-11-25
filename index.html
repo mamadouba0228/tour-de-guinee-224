@@ -414,8 +414,6 @@ function vCfg(){
   <label>Nom du contact<input name="carteContactNom" value="${esc(c.carteContactNom)}"></label>
   <label>WhatsApp du contact<input name="carteContactTel" type="tel" placeholder="+224 6xx xx xx xx" value="${esc(c.carteContactTel)}"></label>
   <div class="full"><button class="pri">Enregistrer</button></div></form></div>
-  <div class="sec"><h3>Taux de change</h3><form id="frmTaux" class="row"><label style="flex:1 1 240px">1 € = combien de GNF ?<input name="taux" type="text" inputmode="numeric" autocomplete="off" data-money value="${esc(grp(c.taux))}"></label><button class="pri" style="align-self:end">Enregistrer le taux</button></form>
-  <p class="note">Chaque nouveau reportage garde le taux du jour où il est créé : changer le taux ici ne modifie pas les montants en euros des anciens reportages.</p></div>
   ${OWNER()?`<div class="sec"><h3>Informations sur les reçus et factures</h3><p class="note">Vous êtes le propriétaire : vous seul émettez les reçus et les envoyez par WhatsApp. Votre signature est gardée dans le dossier protégé data du serveur (fichier signature.svg).</p><form id="frmEnt" class="grid2">
   <label>Nom de l’entreprise<input name="entreprise" value="${esc(c.entreprise||"Tour de Guinée 224")}"></label><label>Téléphone<input name="entTel" type="tel" value="${esc(c.entTel)}"></label>
   <label>Adresse<input name="entAdresse" value="${esc(c.entAdresse)}"></label><label>E-mail<input name="entEmail" type="email" value="${esc(c.entEmail)}"></label>
@@ -836,7 +834,6 @@ function bind(){
   if($("#flushNow"))$("#flushNow").onclick=async e=>{e.target.disabled=true;await sync();if(Q.get().length)toast(S.offline?"Toujours pas de réseau.":"Certaines modifications n’ont pas pu être envoyées.")};
   if($("#install"))$("#install").onclick=async()=>{installEvt.prompt();await installEvt.userChoice.catch(()=>{});installEvt=null;render()};
   if($("#frmCarte"))$("#frmCarte").onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries([...new FormData(e.target)].map(([k,v])=>[k,String(v).trim()]));await saveDoc("config","main",o,"cartes");toast("Textes des cartes enregistrés")};
-  if($("#frmTaux"))$("#frmTaux").onsubmit=async e=>{e.preventDefault();const t=pn(e.target.taux.value);if(t<=0)return toast("Taux invalide");await saveDoc("config","main",{taux:t},"taux");toast("Taux enregistré")};
   if($("#frmEnt"))$("#frmEnt").onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries([...new FormData(e.target)].map(([k,v])=>[k,String(v).trim()]));await saveDoc("config","main",o,"informations");toast("Informations enregistrées")};
   if($("#logout"))$("#logout").onclick=async e=>{const n=Q.get().length;if(n&&!confirmBtn(e.target,`Confirmer : ${n} modification(s) non envoyée(s) seront perdues`))return;
     await api("logout",{body:{}}).catch(()=>{});try{localStorage.removeItem("tdg_cache_"+S.me.id);localStorage.removeItem("tdg_last")}catch(_){}Q.set([]);S.me=null;S.ready=0;boot()};

@@ -139,7 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (($_SERVER['HTTP_X_TDG'] ?? '') !== '1') fail('Requête refusée', 403);
   if (!str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/')) $in = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
 }
-$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'upload', 'file_del', 'import'];
+$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'user_role', 'upload', 'file_del', 'import'];
 if (in_array($a, $POST_ONLY, true) && $_SERVER['REQUEST_METHOD'] !== 'POST') fail('Méthode non autorisée', 405);
 
 switch ($a) {
@@ -362,6 +362,19 @@ switch ($a) {
     $id = (int) ($in['id'] ?? 0); $collab = (string) ($in['collab'] ?? '');
     if ($collab !== '' && !getRow('collaborateurs', $collab)) fail('Fiche collaborateur introuvable');
     db()->prepare('UPDATE users SET collab = ? WHERE id = ? AND role = \'collab\'')->execute([$collab, $id]);
+    out(['ok' => true]);
+
+  case 'user_role':
+    $u = need('admin');
+    $id = (int) ($in['id'] ?? 0); $role = ($in['role'] ?? '') === 'admin' ? 'admin' : 'collab';
+    if ($id === $u['id']) fail('Vous ne pouvez pas changer votre propre rôle');
+    $s = db()->prepare('SELECT login, role FROM users WHERE id = ?'); $s->execute([$id]);
+    $t = $s->fetch();
+    if (!$t) fail('Compte introuvable', 404);
+    if ($t['role'] === 'admin' && $role !== 'admin' && (int) db()->query("SELECT COUNT(*) FROM users WHERE role = 'admin'")->fetchColumn() <= 1) fail('Il doit rester au moins un administrateur');
+    // Un administrateur voit tout : il n'a pas besoin d'être relié à une fiche collaborateur.
+    db()->prepare('UPDATE users SET role = ?, collab = CASE WHEN ? = \'admin\' THEN \'\' ELSE collab END WHERE id = ?')->execute([$role, $role, $id]);
+    if ($t['role'] !== $role) journal($u, 'comptes', $t['login'], 'rôle modifié', ['rôle' => [$t['role'], $role]]);
     out(['ok' => true]);
 
   case 'user_pw':

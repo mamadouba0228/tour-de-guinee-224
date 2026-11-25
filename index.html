@@ -341,11 +341,12 @@ function vCfg(){
   <label class="full">Mention en bas des factures (moyens de paiement, n° Orange Money…)<textarea name="entPied">${esc(c.entPied)}</textarea></label>
   <div class="full"><button class="pri">Enregistrer</button></div></form></div>
   <div class="sec"><h3>Comptes d’accès</h3><p class="note">Créez un compte par collaborateur et <strong>reliez-le à sa fiche collaborateur</strong> : il ne verra que ses propres reportages et ses versements, sans les prix ni les marges. Il peut créer des reportages, changer leur statut, déclarer ses frais et ajouter des photos. Envoyez-lui son identifiant et son mot de passe par WhatsApp.</p>
+  <p class="note">Un <strong>administrateur</strong> voit et modifie tout, y compris les comptes. Vous pouvez changer le rôle d’un compte dans la liste ci-dessous ; il reste toujours au moins un administrateur.</p>
   <div id="users"><div class="note">Chargement…</div></div>
   <form id="uadd" class="grid2" style="margin-top:12px"><label>Nom<input name="nom" required></label><label>Identifiant<input name="login" required autocomplete="off" autocapitalize="none" pattern="[A-Za-z0-9._\\-]{3,40}" title="3 à 40 lettres sans accent, chiffres, point, tiret" placeholder="ex. mamadou"></label>
   <label>Mot de passe (8 caractères min.)<input name="password" required minlength="8" autocomplete="new-password"></label>
   <label>Rôle<select name="role"><option value="collab">Collaborateur</option><option value="admin">Administrateur</option></select></label>
-  <label class="full">Fiche collaborateur<select name="collab"><option value="">— à relier plus tard —</option>${S.col.slice().sort(byNom).map(x=>`<option value="${esc(x.id)}">${esc(x.nom)}</option>`).join("")}</select></label>
+  <label class="full" id="uaddCol">Fiche collaborateur<select name="collab"><option value="">— à relier plus tard —</option>${S.col.slice().sort(byNom).map(x=>`<option value="${esc(x.id)}">${esc(x.nom)}</option>`).join("")}</select></label>
   <div class="full"><button class="pri">Créer le compte</button></div></form></div>
   <div class="sec"><h3>Sauvegarde</h3>
   <div class="row"><a class="btn" id="exp" href="api.php?a=export" download>Télécharger une sauvegarde (.json)</a><button id="csvRep">Reportages en CSV</button><button id="csvVer">Versements en CSV</button></div>
@@ -361,8 +362,11 @@ async function loadUsers(){
   const box=$("#users");if(!box)return;
   try{const {users}=await api("users");
     const sel=(u)=>`<select data-ulink="${u.id}" aria-label="Fiche de ${esc(u.nom)}"><option value="">— non relié —</option>${S.col.slice().sort(byNom).map(c=>`<option value="${esc(c.id)}" ${c.id===u.collab?"selected":""}>${esc(c.nom)}</option>`).join("")}</select>`;
-    box.innerHTML=`<table class="stack"><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Fiche collaborateur</th><th></th></tr></thead><tbody>${users.map(u=>`<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${u.role==="admin"?"Administrateur":"Collaborateur"}</td><td>${u.role==="admin"?'<span class="note">voit tout</span>':sel(u)}</td><td style="text-align:end">${+u.id===S.me.id?"":`<button data-upw="${u.id}">Nouveau mot de passe</button> <button class="dng" data-udel="${u.id}">Supprimer</button>`}</td></tr>`).join("")}</tbody></table>`;
+    box.innerHTML=`<table class="stack"><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Fiche collaborateur</th><th></th></tr></thead><tbody>${users.map(u=>`<tr><td>${esc(u.nom)}</td><td>${esc(u.login)}</td><td>${+u.id===S.me.id?"Administrateur (vous)":`<select data-urole="${u.id}" aria-label="Rôle de ${esc(u.nom)}"><option value="collab" ${u.role!=="admin"?"selected":""}>Collaborateur</option><option value="admin" ${u.role==="admin"?"selected":""}>Administrateur</option></select>`}</td><td>${u.role==="admin"?'<span class="note">voit tout</span>':sel(u)}</td><td style="text-align:end">${+u.id===S.me.id?"":`<button data-upw="${u.id}">Nouveau mot de passe</button> <button class="dng" data-udel="${u.id}">Supprimer</button>`}</td></tr>`).join("")}</tbody></table>`;
     box.querySelectorAll("[data-ulink]").forEach(s=>s.onchange=async()=>{try{await api("user_link",{body:{id:+s.dataset.ulink,collab:s.value}});toast("Compte relié")}catch(e){err(e)}});
+    box.querySelectorAll("[data-urole]").forEach(s=>s.onchange=async()=>{const u=users.find(x=>+x.id===+s.dataset.urole);
+      if(s.value==="admin"&&!confirm(`Donner le rôle d’administrateur à ${u.nom} ? Il verra tous les montants et pourra gérer les comptes, les versements et les suppressions.`)){s.value=u.role;return}
+      try{await api("user_role",{body:{id:+s.dataset.urole,role:s.value}});toast(s.value==="admin"?`${u.nom} est maintenant administrateur`:`${u.nom} est maintenant collaborateur : reliez-le à sa fiche`);loadUsers()}catch(e){s.value=u.role;err(e)}});
     box.querySelectorAll("[data-udel]").forEach(b=>b.onclick=async()=>{if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmer";return}try{await api("user_del",{body:{id:+b.dataset.udel}});toast("Compte supprimé");loadUsers()}catch(e){err(e)}});
     box.querySelectorAll("[data-upw]").forEach(b=>b.onclick=()=>{const td=b.parentElement;td.innerHTML='<form class="row"><input type="text" minlength="8" required placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe" style="flex:1 1 160px"><button class="pri">OK</button></form>';td.querySelector("input").focus();td.querySelector("form").onsubmit=async e=>{e.preventDefault();try{await api("user_pw",{body:{id:+b.dataset.upw,password:td.querySelector("input").value}});toast("Mot de passe changé");loadUsers()}catch(x){err(x)}}});
   }catch(e){box.innerHTML=`<div class="note">${e.offline?"Liste des comptes indisponible hors connexion.":"Impossible de charger les comptes."}</div>`}
@@ -551,6 +555,7 @@ function bind(){
     await api("logout",{body:{}}).catch(()=>{});try{localStorage.removeItem("tdg_cache_"+S.me.id);localStorage.removeItem("tdg_last")}catch(_){}Q.set([]);S.me=null;S.ready=0;boot()};
   if($("#mypw"))$("#mypw").onsubmit=async e=>{e.preventDefault();const f=e.target;try{await api("user_pw",{body:{ancien:f.ancien.value,password:f.password.value}});f.reset();toast("Mot de passe changé")}catch(x){err(x)}};
   if($("#uadd"))$("#uadd").onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));try{await api("user_add",{body:f});e.target.reset();toast("Compte créé");loadUsers()}catch(x){err(x)}};
+  if($("#uadd")){const r=$("#uadd [name=role]");r.onchange=()=>{$("#uaddCol").hidden=r.value==="admin"}}
   if($("#users"))loadUsers();
   if($("#activity"))loadActivity();
   if($("#restore"))$("#restore").onchange=async e=>{const file=e.target.files[0];e.target.value="";if(!file)return;

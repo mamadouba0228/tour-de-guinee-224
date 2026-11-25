@@ -226,6 +226,16 @@
         if (z && z.role === "collab") { z.collab = String(body.collab || ""); save(); }
         return R({ ok: true });
       }
+      case "user_role": {
+        if ((x = need(true))) return x;
+        const z = db.users.find(v => v.id === +body.id), role = body.role === "admin" ? "admin" : "collab";
+        if (+body.id === u.id) return E("Vous ne pouvez pas changer votre propre rôle");
+        if (!z) return E("Compte introuvable", 404);
+        if (z.role === "admin" && role !== "admin" && db.users.filter(v => v.role === "admin").length <= 1) return E("Il doit rester au moins un administrateur");
+        if (z.role !== role) journal(u, "comptes", z.login, "rôle modifié", { "rôle": [z.role, role] });
+        z.role = role; if (role === "admin") z.collab = ""; save();
+        return R({ ok: true });
+      }
       case "user_pw": {
         if ((x = need())) return x;
         const id = +(body.id || u.id), z = db.users.find(v => v.id === id);

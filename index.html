@@ -493,7 +493,8 @@ function recu(r){
   const plat=[].concat(r.plateformes||[]).join(" et ");
   const t=num(r.taux)||num(c.taux);
   $("#print").innerHTML=`<div class="inv"><div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap">
-  <div><h1>${esc(c.entreprise||"Tour de Guinée 224")}</h1><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div>
+  <div style="display:flex;gap:16px;align-items:center"><img src="logo.png" alt="Tour de Guinée 224" style="height:78px;width:auto">
+  <div><strong style="font-size:13pt">${esc(c.entreprise||"Tour de Guinée 224")}</strong><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div></div>
   <div style="text-align:right"><div style="font:800 20pt Archivo,Arial">${paye?"REÇU":"FACTURE"}</div><div>N° ${esc(no)}</div><div>Émis le ${dt(today())}</div></div></div>
   <div class="flag"></div>
   <p><strong>${paye?"Reçu de":"Facturé à"} :</strong><br>${esc(nom)||"—"}${tel?"<br>"+esc(tel):""}${adr?"<br>"+esc(adr):""}</p>
@@ -505,7 +506,8 @@ function recu(r){
   <p style="color:#555">${t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""}</p>
   ${paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
   ${c.entPied?`<p style="margin-top:30px;white-space:pre-line;color:#333">${esc(c.entPied)}</p>`:""}</div>`;
-  setTimeout(()=>window.print(),50);
+  // Attendre que le logo soit chargé, sinon il manquerait sur le PDF.
+  const im=$("#print img");Promise.race([im?im.decode().catch(()=>{}):0,new Promise(r=>setTimeout(r,3000))]).then(()=>window.print());
 }
 
 /* ---------- Exports ---------- */
@@ -632,7 +634,7 @@ async function sync(){
   if(again){again=0;sync()}
 }
 function authForm(setup){
-  $("#app").innerHTML=`<div style="max-width:420px;margin:30px auto"><h2>${setup?"Première installation":"Connexion"}</h2>
+  $("#app").innerHTML=`<div style="max-width:420px;margin:30px auto"><div style="background:#fff;border-radius:16px;padding:14px 18px;margin-bottom:20px"><img src="logo.png" alt="Tour de Guinée 224" style="display:block;width:100%;max-width:320px;height:auto;margin:0 auto"></div><h2>${setup?"Première installation":"Connexion"}</h2>
   ${setup?'<p class="note">Créez le compte administrateur. Le code d’installation est celui que vous avez mis dans config.php.</p>':''}
   <form id="auth" class="grid2" style="grid-template-columns:minmax(0,1fr)">
   ${setup?'<label>Code d’installation<input name="code" required autocomplete="off"></label><label>Votre nom<input name="nom" required></label>':''}

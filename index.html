@@ -28,7 +28,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-
 h1,h2,h3{font-family:Archivo,Inter,sans-serif;line-height:1.05;margin:0;text-wrap:balance}
 header{background:var(--brand);color:#fff;padding:18px max(4vw,16px) 0;position:relative}
 header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:linear-gradient(90deg,#ce1126 0 33.3%,var(--yel) 0 66.6%,#009460 0)}
-.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}
+.hlogo{margin-inline-start:auto;flex:none;width:72px;height:72px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgb(255 255 255/.35)}
+@media(max-width:600px){.hlogo{width:52px;height:52px}}
 h1{font-size:clamp(24px,4vw,34px);font-weight:800}
 .sub{opacity:.9;font-size:14px}
 nav{display:flex;gap:4px;margin-top:14px;overflow-x:auto;padding-bottom:5px;min-height:49px}
@@ -114,7 +116,7 @@ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-bl
 </style><script src="demo.js"></script><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
 <body>
 <header>
-  <div class="brand"><div><h1>Gestion des reportages</h1><div class="sub">Tour de Guinée 224 · Facebook &amp; TikTok</div></div></div>
+  <div class="brand"><div><h1>Gestion des reportages</h1><div class="sub">Tour de Guinée 224 · Facebook &amp; TikTok</div></div><img class="hlogo" src="logo2.jpg" alt="Tour de Guinée 224"></div>
   <nav id="nav" aria-label="Rubriques"></nav>
 </header>
 <main id="app"><div class="empty">Chargement…</div></main>
@@ -818,7 +820,7 @@ async function sync(){
   if(again){again=0;sync()}
 }
 function authForm(setup){
-  $("#app").innerHTML=`<div style="max-width:420px;margin:30px auto"><div style="background:#fff;border-radius:16px;padding:14px 18px;margin-bottom:20px"><img src="logo.png" alt="Tour de Guinée 224" style="display:block;width:100%;max-width:320px;height:auto;margin:0 auto"></div><h2>${setup?"Première installation":"Connexion"}</h2>
+  $("#app").innerHTML=`<div style="max-width:420px;margin:30px auto"><div style="background:#fff;border-radius:16px;padding:14px 18px;margin-bottom:20px"><img src="logo2.jpg" alt="Tour de Guinée 224" style="display:block;width:100%;max-width:200px;height:auto;margin:0 auto;border-radius:50%"></div><h2>${setup?"Première installation":"Connexion"}</h2>
   ${setup?'<p class="note">Créez le compte administrateur. Le code d’installation est celui que vous avez mis dans config.php.</p>':''}
   <form id="auth" class="grid2" style="grid-template-columns:minmax(0,1fr)">
   ${setup?'<label>Code d’installation<input name="code" required autocomplete="off"></label><label>Votre nom<input name="nom" required></label>':''}

@@ -337,6 +337,7 @@ function vCfg(){
   <div class="sec"><h3>Informations sur les reçus et factures</h3><form id="frmEnt" class="grid2">
   <label>Nom de l’entreprise<input name="entreprise" value="${esc(c.entreprise||"Tour de Guinée 224")}"></label><label>Téléphone<input name="entTel" type="tel" value="${esc(c.entTel)}"></label>
   <label>Adresse<input name="entAdresse" value="${esc(c.entAdresse)}"></label><label>E-mail<input name="entEmail" type="email" value="${esc(c.entEmail)}"></label>
+  <label class="full">Nom et fonction sous la signature<input name="entSignataire" placeholder="ex. Le directeur" value="${esc(c.entSignataire)}"></label>
   <label class="full">Mention en bas des factures (moyens de paiement, n° Orange Money…)<textarea name="entPied">${esc(c.entPied)}</textarea></label>
   <div class="full"><button class="pri">Enregistrer</button></div></form></div>
   <div class="sec"><h3>Comptes d’accès</h3><p class="note">Créez un compte par collaborateur et <strong>reliez-le à sa fiche collaborateur</strong> : il ne verra que ses propres reportages et ses versements, sans les prix ni les marges. Il peut créer des reportages, changer leur statut, déclarer ses frais et ajouter des photos. Envoyez-lui son identifiant et son mot de passe par WhatsApp.</p>
@@ -493,8 +494,7 @@ function recu(r){
   const plat=[].concat(r.plateformes||[]).join(" et ");
   const t=num(r.taux)||num(c.taux);
   $("#print").innerHTML=`<div class="inv"><div style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap">
-  <div style="display:flex;gap:16px;align-items:center"><img src="logo.png" alt="Tour de Guinée 224" style="height:78px;width:auto">
-  <div><strong style="font-size:13pt">${esc(c.entreprise||"Tour de Guinée 224")}</strong><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div></div>
+  <div><h1>${esc(c.entreprise||"Tour de Guinée 224")}</h1><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div>
   <div style="text-align:right"><div style="font:800 20pt Archivo,Arial">${paye?"REÇU":"FACTURE"}</div><div>N° ${esc(no)}</div><div>Émis le ${dt(today())}</div></div></div>
   <div class="flag"></div>
   <p><strong>${paye?"Reçu de":"Facturé à"} :</strong><br>${esc(nom)||"—"}${tel?"<br>"+esc(tel):""}${adr?"<br>"+esc(adr):""}</p>
@@ -505,9 +505,16 @@ function recu(r){
   <tr><td style="text-align:right"><strong>${paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,reste))}</strong></td></tr></tbody></table>
   <p style="color:#555">${t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""}</p>
   ${paye?"<p><strong>Payé intégralement. Merci pour votre confiance.</strong></p>":""}
-  ${c.entPied?`<p style="margin-top:30px;white-space:pre-line;color:#333">${esc(c.entPied)}</p>`:""}</div>`;
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-top:30px;break-inside:avoid">
+  <p style="margin:0;white-space:pre-line;color:#333;flex:1">${esc(c.entPied||"")}</p>
+  <div style="width:240px;text-align:center;flex:none">
+    <img src="logo.png" alt="Tour de Guinée 224" style="display:block;height:80px;width:auto;margin:0 auto 6px">
+    <img src="signature.svg" alt="Signature" style="display:block;height:72px;width:auto;margin:0 auto" onerror="this.outerHTML='<div style=&quot;height:72px&quot;></div>'">
+    <div style="border-top:1px solid #999;padding-top:4px;font-size:10pt;color:#444">${esc(c.entSignataire||"Signature")}</div>
+  </div></div></div>`;
   // Attendre que le logo soit chargé, sinon il manquerait sur le PDF.
-  const im=$("#print img");Promise.race([im?im.decode().catch(()=>{}):0,new Promise(r=>setTimeout(r,3000))]).then(()=>window.print());
+  const imgs=[...document.querySelectorAll("#print img")].map(i=>i.decode().catch(()=>{}));
+  Promise.race([Promise.all(imgs),new Promise(r=>setTimeout(r,3000))]).then(()=>window.print());
 }
 
 /* ---------- Exports ---------- */

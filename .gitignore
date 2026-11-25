@@ -2,3 +2,7 @@
 data/*.sqlite
 data/*.sqlite-*
 data/uploads/
+
+# Signature manuscrite : jamais sur GitHub (dépôt public). Elle est seulement dans le zip pour alwaysdata.
+signature.svg
+signature.png

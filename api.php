@@ -245,7 +245,7 @@ switch ($a) {
       } elseif ($coll === 'clients') {
         // Un collaborateur peut créer un client (nom + téléphone) et corriger ceux qu'il a créés.
         if ($old !== null && $row['par'] !== $u['id']) fail('Seul l’administrateur peut modifier cette fiche client', 403);
-        $data = array_intersect_key($data, ['nom' => 1, 'tel' => 1, 'maj' => 1]);
+        $data = array_intersect_key($data, ['nom' => 1, 'tel' => 1, 'region' => 1, 'prefecture' => 1, 'sousPrefecture' => 1, 'maj' => 1]);
       } else {
         fail('Vous ne pouvez pas modifier cette rubrique', 403);
       }

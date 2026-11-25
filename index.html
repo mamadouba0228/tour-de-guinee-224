@@ -126,6 +126,17 @@ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-bl
 {
 const STATUTS=["Demande","Planifié","Tournage","Montage","Publié"];
 const REGIONS=["Conakry","Boké","Kindia","Mamou","Labé","Faranah","Kankan","N'Zérékoré"];
+// Préfectures par région (Conakry : communes). Proposées en suggestions ; on peut aussi taper un autre nom.
+const PREFECTURES={"Conakry":["Kaloum","Dixinn","Matam","Ratoma","Matoto"],"Boké":["Boffa","Boké","Fria","Gaoual","Koundara"],
+ "Kindia":["Coyah","Dubréka","Forécariah","Kindia","Télimélé"],"Mamou":["Dalaba","Mamou","Pita"],"Labé":["Koubia","Labé","Lélouma","Mali","Tougué"],
+ "Faranah":["Dabola","Dinguiraye","Faranah","Kissidougou"],"Kankan":["Kankan","Kérouané","Kouroussa","Mandiana","Siguiri"],
+ "N'Zérékoré":["Beyla","Guéckédou","Lola","Macenta","N'Zérékoré","Yomou"]};
+// Remplit la liste de suggestions de préfectures selon la région choisie.
+function linkPref(regSel,prefInput){if(!regSel||!prefInput)return;const dl=document.getElementById(prefInput.getAttribute("list"));
+  const fill=()=>{const L=regSel.value?PREFECTURES[regSel.value]||[]:Object.values(PREFECTURES).flat();dl.innerHTML=L.map(p=>`<option value="${esc(p)}">`).join("")};
+  regSel.addEventListener("change",()=>{const L=PREFECTURES[regSel.value]||[];if(prefInput.value&&regSel.value&&!L.includes(prefInput.value))prefInput.value="";fill()});fill()}
+// Lignes de localisation d'un client (pour la fiche et les reçus).
+const lieuClient=c=>!c?[]:[c.region&&"Région : "+c.region,c.prefecture&&(c.region==="Conakry"?"Commune : ":"Préfecture : ")+c.prefecture,c.sousPrefecture&&"Sous-préfecture : "+c.sousPrefecture,c.adresse&&"Adresse : "+c.adresse].filter(Boolean);
 const MOYENS=["Orange Money","MTN MoMo","Espèces","Transfert (WU, Ria…)","Autre"];
 const PLATEFORMES=["Facebook","TikTok"];
 const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
@@ -273,7 +284,7 @@ function vClients(){
   const anciens=S.rep.filter(r=>!r.clientId&&String(r.client||"").trim());
   return `<div class="row"><h2 class="sp">Clients (${L.length})</h2><button class="pri" data-new="cli">+ Nouveau client</button></div>
   ${anciens.length?`<div class="banner row"><span class="sp">${anciens.length} reportage${anciens.length>1?"s ont":" a"} un client écrit à la main, sans fiche client.</span><button id="migr">Créer les fiches clients correspondantes</button></div>`:""}
-  ${L.length?`<table class="stack"><thead><tr><th>Client</th><th>Téléphone</th><th class="n">Reportages</th><th class="n">Facturé</th><th class="n">Encaissé</th><th class="n">Reste dû</th></tr></thead><tbody>${L.map(c=>{const x=cliStats(c.id);return `<tr class="click" data-edit="cli:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.adresse?`<div class="note">${esc(c.adresse)}</div>`:""}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td class="n">${x.n}</td><td class="n">${gnf(x.f)}</td><td class="n">${gnf(x.e)}</td><td class="n"><strong>${gnf(x.reste)}</strong></td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun client pour l’instant. Les clients créés depuis un reportage apparaissent ici.</div>'}`;
+  ${L.length?`<table class="stack"><thead><tr><th>Client</th><th>Téléphone</th><th>Localité</th><th class="n">Reportages</th><th class="n">Facturé</th><th class="n">Encaissé</th><th class="n">Reste dû</th></tr></thead><tbody>${L.map(c=>{const x=cliStats(c.id);return `<tr class="click" data-edit="cli:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.adresse?`<div class="note">${esc(c.adresse)}</div>`:""}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td>${esc([c.sousPrefecture,c.prefecture,c.region].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(", "))}</td><td class="n">${x.n}</td><td class="n">${gnf(x.f)}</td><td class="n">${gnf(x.e)}</td><td class="n"><strong>${gnf(x.reste)}</strong></td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun client pour l’instant. Les clients créés depuis un reportage apparaissent ici.</div>'}`;
 }
 
 /* Statistiques : barres horizontales à une seule série (une couleur), valeur écrite à côté, tableau disponible. */
@@ -393,7 +404,7 @@ const FORMS={
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
  col:[["nom","Nom complet","text",1],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,REGIONS],["moyen","Moyen de paiement préféré","sel",0,MOYENS],["notes","Notes","area"]],
  ver:[["collab","Collaborateur","col",1],["date","Date","date"],["montant","Montant (GNF)","num",1],["moyen","Moyen","sel",0,MOYENS],["ref","Référence de transaction","text"],["rep","Pour le reportage (facultatif)","rep"],["notes","Notes","area"]],
- cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["adresse","Adresse / ville","text"],["notes","Notes","area"]]
+ cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","text"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
 };
 for(const k in FORMS)for(const f of FORMS[k])FIELD_LBL[f[0]]??=f[1].replace(/ \(GNF\)$/,"");
 Object.assign(FIELD_LBL,{client:"Client",contact:"Téléphone du client",fichier:"Fichier",fiche:"Fiche",clientId:"Client"});
@@ -412,7 +423,11 @@ function openForm(kind,id){
     if(t==="cli"){const o=S.cli.slice().sort(byNom);
       return `<label class="full">${l}<select name="clientId"${dis}><option value="">—</option>${o.map(c=>`<option value="${esc(c.id)}" ${c.id===v?"selected":""}>${esc(c.nom)}${c.tel?" · "+esc(c.tel):""}</option>`).join("")}${ro?"":'<option value="__new">+ Nouveau client…</option>'}</select></label>
       ${!v&&d.client?`<p class="note full" style="margin:-6px 0 0">Client noté à la main : ${esc(d.client)} ${esc(d.contact)}</p>`:""}
-      <div class="grid2 full" id="newcli" hidden><label>Nom du nouveau client<input name="_cnom"></label><label>Téléphone du client<input name="_ctel" type="tel"></label></div>`}
+      <div class="grid2 full" id="newcli" hidden><label>Nom du nouveau client<input name="_cnom"></label><label>Téléphone du client<input name="_ctel" type="tel"></label>
+      <label>Région du client<select name="_creg"><option value="">—</option>${REGIONS.map(g=>`<option>${esc(g)}</option>`).join("")}</select></label>
+      <label>Préfecture (commune à Conakry)<input name="_cpref" list="dl-cpref" autocomplete="off"><datalist id="dl-cpref"></datalist></label>
+      <label class="full">Sous-préfecture<input name="_csp"></label></div>`}
+    if(t==="pref")return `<label>${l}<input name="${k}" list="dl-${k}" autocomplete="off" value="${esc(v)}"${dis}><datalist id="dl-${k}"></datalist></label>`;
     if(t==="sel"||t==="col"||t==="rep"){const o=t==="col"?S.col.slice().sort(byNom).map(c=>[c.id,c.nom]):t==="rep"?S.rep.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(x=>[x.id,x.titre]):opts.map(x=>[x,x]);
       return `<label${cls}>${l}<select name="${k}"${r}${dis}><option value="">—</option>${o.map(([a,b])=>`<option value="${esc(a)}" ${a===v?"selected":""}>${esc(b)}</option>`).join("")}</select></label>`}
     if(t==="chk")return `<div class="full"><span style="font-size:14px;font-weight:600">${l}</span><div class="chk">${opts.map(o=>`<label><input type="checkbox" name="${k}" value="${o}" ${(d[k]||[]).includes(o)?"checked":""}${dis}>${o}</label>`).join("")}</div></div>`;
@@ -433,6 +448,8 @@ function openForm(kind,id){
   const frm=$("#frm");(frm.querySelector("input:not([disabled]),select:not([disabled])")||$("#x")).focus();
   if($("#fbox"))filesBox(pjColl,id,exists);
   $("#x").onclick=$("#cancel").onclick=closeModal;
+  linkPref(frm.querySelector("[name=_creg]"),frm.querySelector("[name=_cpref]"));
+  if(kind==="cli")linkPref(frm.querySelector("[name=region]"),frm.querySelector("[name=prefecture]"));
   const cs=frm.querySelector("[name=clientId]");if(cs)cs.onchange=()=>{const n=cs.value==="__new";$("#newcli").hidden=!n;if(n)frm._cnom.focus()};
   frm.querySelectorAll("[data-money]").forEach(moneyInput);
   const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
@@ -453,7 +470,8 @@ function openForm(kind,id){
     if(kind==="rep"){
       let cid=String(f.get("clientId")||"");
       if(cid==="__new"){const nom=String(f.get("_cnom")||"").trim();if(!nom){btn.disabled=false;frm._cnom.focus();return toast("Indiquez le nom du nouveau client")}
-        cid=newId();enqueue("clients",cid,{nom,tel:String(f.get("_ctel")||"").trim(),maj:new Date().toISOString()},nom)}
+        const g=k=>String(f.get(k)||"").trim();
+        cid=newId();enqueue("clients",cid,{nom,tel:g("_ctel"),region:g("_creg"),prefecture:g("_cpref"),sousPrefecture:g("_csp"),maj:new Date().toISOString()},nom)}
       const c=S.cli.find(x=>x.id===cid);
       if(cid||!d.client){o.clientId=cid;o.client=c?.nom||"";o.contact=c?.tel||""}
       if(!ADM())o.collab=MYCOL();
@@ -504,9 +522,9 @@ async function shrink(file){
 function recuData(r){
   const c=S.cfg,prix=num(r.prix),enc=num(r.encaisse),reste=prix-enc,paye=prix>0&&reste<=0;
   const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et "),t=num(r.taux)||num(c.taux);
-  return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",adr:cli?.adresse||"",
+  return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
     no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
-    detail:[r.village,r.region].filter(Boolean).join(", ")+(r.date?" · tournage le "+dt(r.date):"")+(plat?" · diffusion sur "+plat:""),
+    detail:[[r.village,r.region].filter(Boolean).join(", "),r.date&&"tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · "),
     eurTxt:t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""};
 }
 // La signature est gardée dans le dossier protégé du serveur, qui ne la donne qu'au propriétaire.
@@ -527,7 +545,7 @@ async function recuPrint(r){
   <div><h1>${esc(c.entreprise||"Tour de Guinée 224")}</h1><div>${[c.entAdresse,c.entTel,c.entEmail].filter(Boolean).map(esc).join("<br>")}</div></div>
   <div style="text-align:right"><div style="font:800 20pt Archivo,Arial">${D.titre}</div><div>N° ${esc(D.no)}</div><div>Émis le ${dt(today())}</div></div></div>
   <div class="flag"></div>
-  <p><strong>${D.paye?"Reçu de":"Facturé à"} :</strong><br>${esc(D.nom)||"—"}${D.tel?"<br>"+esc(D.tel):""}${D.adr?"<br>"+esc(D.adr):""}</p>
+  <p><strong>${D.paye?"Reçu de":"Facturé à"} :</strong><br>${esc(D.nom)||"—"}${D.tel?"<br>"+esc(D.tel):""}${D.lieux.map(l=>"<br>"+esc(l)).join("")}</p>
   <table><thead><tr><th>Désignation</th><th class="n">Montant</th></tr></thead><tbody>
   <tr><td>Reportage « ${esc(r.titre)} »<br><span style="color:#555">${esc(D.detail)}</span></td><td class="n">${gnf(D.prix)}</td></tr>
   <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(D.prix)}</strong></td></tr>
@@ -563,7 +581,8 @@ function drawRecu(D,r,logo,sig){
   y=Math.max(yy,y+100)+10;
   ["#ce1126","#fcd116","#009460"].forEach((col,i)=>{x.fillStyle=col;x.fillRect(M+i*(W-2*M)/3,y,(W-2*M)/3,12)});
   y+=74;T((D.paye?"Reçu de":"Facturé à")+" :",M,y,{w:700,s:28});
-  for(const l of [D.nom||"—",D.tel,D.adr].filter(Boolean)){y+=40;T(l,M,y,{s:28})}
+  for(const l of [D.nom||"—",D.tel].filter(Boolean)){y+=40;T(l,M,y,{s:28})}
+  for(const l of D.lieux){y+=36;T(l,M,y,{s:24,c:"#333"})}
   y+=80;T("Désignation",M+10,y,{w:700,s:24});T("Montant",W-M-10,y,{w:700,s:24,a:"right"});y+=18;rule(y);
   y+=48;const l1=wrap(`Reportage « ${r.titre} »`,760,400,28);
   l1.forEach((l,i)=>T(l,M+10,y+i*38,{s:28}));T(gnf(D.prix),W-M-10,y,{s:28,a:"right"});y+=l1.length*38;

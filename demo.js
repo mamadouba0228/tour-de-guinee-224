@@ -34,9 +34,9 @@
       c3: doc({ nom: "Sékou (démo)", tel: "622 33 33 33", region: "Kankan", moyen: "Orange Money" })
     };
     docs.clients = {
-      k1: doc({ nom: "Association des jeunes (démo)", tel: "623 44 44 44", adresse: "Labé" }),
-      k2: doc({ nom: "Boutique Kadiatou (démo)", tel: "624 55 55 55", adresse: "Conakry" }),
-      k3: doc({ nom: "Comité du festival (démo)", tel: "625 66 66 66", adresse: "Kankan" })
+      k1: doc({ nom: "Association des jeunes (démo)", tel: "623 44 44 44", region: "Mamou", prefecture: "Pita", sousPrefecture: "Timbi-Madina" }),
+      k2: doc({ nom: "Boutique Kadiatou (démo)", tel: "624 55 55 55", region: "Conakry", prefecture: "Ratoma", adresse: "Kipé" }),
+      k3: doc({ nom: "Comité du festival (démo)", tel: "625 66 66 66", region: "Kankan", prefecture: "Kankan" })
     };
     docs.versements = {
       v1: doc({ collab: "c1", date: d(1, 20), montant: 550000, moyen: "Orange Money", ref: "OM-DEMO-001", rep: "r1" }),
@@ -141,7 +141,7 @@
             data = pick(data, COLLAB_FIELDS); data.collab = u.collab;
           } else if (coll === "clients") {
             if (old && row.par !== u.id) return E("Seul l’administrateur peut modifier cette fiche client", 403);
-            data = pick(data, ["nom", "tel", "maj"]);
+            data = pick(data, ["nom", "tel", "region", "prefecture", "sousPrefecture", "maj"]);
           } else return E("Vous ne pouvez pas modifier cette rubrique", 403);
         }
         if (coll === "clients" && !String(data.nom ?? old?.nom ?? "").trim()) return E("Le nom du client est obligatoire");

@@ -29,7 +29,6 @@ h1,h2,h3{font-family:Archivo,Inter,sans-serif;line-height:1.05;margin:0;text-wra
 header{background:var(--brand);color:#fff;padding:18px max(4vw,16px) 0;position:relative}
 header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;background:linear-gradient(90deg,#ce1126 0 33.3%,var(--yel) 0 66.6%,#009460 0)}
 .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.logo{width:42px;height:42px;border-radius:10px;background:var(--yel);color:var(--brand);display:grid;place-items:center;font:800 17px Archivo,Inter,sans-serif}
 h1{font-size:clamp(24px,4vw,34px);font-weight:800}
 .sub{opacity:.9;font-size:14px}
 nav{display:flex;gap:4px;margin-top:14px;overflow-x:auto;padding-bottom:5px;min-height:49px}
@@ -115,7 +114,7 @@ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-bl
 </style><script src="demo.js"></script><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script></head>
 <body>
 <header>
-  <div class="brand"><div class="logo">224</div><div><h1>Tour de Guinée 224</h1><div class="sub">Gestion des reportages payants · Facebook &amp; TikTok</div></div></div>
+  <div class="brand"><div><h1>Gestion des reportages</h1><div class="sub">Tour de Guinée 224 · Facebook &amp; TikTok</div></div></div>
   <nav id="nav" aria-label="Rubriques"></nav>
 </header>
 <main id="app"><div class="empty">Chargement…</div></main>

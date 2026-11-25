@@ -14,7 +14,7 @@ header('X-Content-Type-Options: nosniff');
 const COLLS = ['reportages', 'collaborateurs', 'versements', 'config', 'clients'];
 // Ce qu'un collaborateur peut modifier sur SES reportages. Le reste (prix, encaissé, rémunération,
 // frais validés, taux, collaborateur attribué) est réservé à l'administrateur.
-const COLLAB_REP_FIELDS = ['titre', 'village', 'region', 'clientId', 'client', 'contact', 'date', 'statut', 'plateformes', 'lien', 'notes', 'fraisDeclares', 'maj'];
+const COLLAB_REP_FIELDS = ['titre', 'village', 'region', 'prefecture', 'sousPrefecture','clientId', 'client', 'contact', 'date', 'statut', 'plateformes', 'lien', 'notes', 'fraisDeclares', 'maj'];
 // Ce qu'un collaborateur ne voit pas sur ses reportages.
 const COLLAB_REP_HIDDEN = ['prix', 'encaisse', 'taux'];
 const TRIES_PER_LOGIN = 5;   // essais ratés autorisés par identifiant et par adresse IP…

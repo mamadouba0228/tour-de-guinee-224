@@ -8,7 +8,7 @@
   const now = () => new Date().toISOString();
   const rid = () => [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
   const COLLS = ["reportages", "collaborateurs", "versements", "config", "clients"];
-  const COLLAB_FIELDS = ["titre", "village", "region", "clientId", "client", "contact", "date", "statut", "plateformes", "lien", "notes", "fraisDeclares", "maj"];
+  const COLLAB_FIELDS = ["titre", "village", "region", "prefecture", "sousPrefecture","clientId", "client", "contact", "date", "statut", "plateformes", "lien", "notes", "fraisDeclares", "maj"];
   const HIDDEN = ["prix", "encaisse", "taux"];
 
   function seed() {
@@ -56,6 +56,16 @@
   let db;
   try { db = JSON.parse(localStorage.getItem(K) || "null"); } catch (_) { db = null; }
   if (!db) db = seed();
+  // Version 2 des exemples : localisation (région, préfecture, sous-préfecture) des reportages et des clients d'exemple,
+  // y compris dans une démo déjà ouverte avant cette mise à jour.
+  if ((db.v || 1) < 2) {
+    const R = { r1: ["Mamou", "Pita", "Timbi-Madina"], r2: ["Conakry", "Matam", ""], r3: ["Kankan", "Kankan", "Kankan-Centre"], r4: ["Mamou", "Dalaba", "Dalaba-Centre"],
+      r5: ["Kindia", "Kindia", "Kindia-Centre"], r6: ["N'Zérékoré", "N'Zérékoré", "N'Zérékoré-Centre"], r7: ["Boké", "Boké", "Kamsar"], r8: ["Conakry", "Ratoma", ""] };
+    for (const [id, [region, prefecture, sousPrefecture]] of Object.entries(R)) { const d = db.docs.reportages?.[id]?.data; if (d && !d.prefecture) Object.assign(d, { region, prefecture, sousPrefecture }); }
+    const C = { k1: { region: "Mamou", prefecture: "Pita", sousPrefecture: "Timbi-Madina" }, k2: { region: "Conakry", prefecture: "Ratoma", adresse: "Kipé" }, k3: { region: "Kankan", prefecture: "Kankan", sousPrefecture: "Kankan-Centre" } };
+    for (const [id, v] of Object.entries(C)) { const d = db.docs.clients?.[id]?.data; if (d && !d.region) Object.assign(d, v); }
+    db.v = 2;
+  }
   // Démo créée avant l'arrivée du compte propriétaire : le premier administrateur le devient.
   if (!db.users.some(z => z.owner)) { const a = db.users.find(z => z.role === "admin"); if (a) a.owner = true; }
   const save = () => { try { localStorage.setItem(K, JSON.stringify(db)); return true; } catch (_) { return false; } };

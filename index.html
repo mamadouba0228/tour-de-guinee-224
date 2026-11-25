@@ -131,10 +131,56 @@ const PREFECTURES={"Conakry":["Kaloum","Dixinn","Matam","Ratoma","Matoto"],"Bok�
  "Kindia":["Coyah","Dubréka","Forécariah","Kindia","Télimélé"],"Mamou":["Dalaba","Mamou","Pita"],"Labé":["Koubia","Labé","Lélouma","Mali","Tougué"],
  "Faranah":["Dabola","Dinguiraye","Faranah","Kissidougou"],"Kankan":["Kankan","Kérouané","Kouroussa","Mandiana","Siguiri"],
  "N'Zérékoré":["Beyla","Guéckédou","Lola","Macenta","N'Zérékoré","Yomou"]};
-// Remplit la liste de suggestions de préfectures selon la région choisie.
-function linkPref(regSel,prefInput){if(!regSel||!prefInput)return;const dl=document.getElementById(prefInput.getAttribute("list"));
-  const fill=()=>{const L=regSel.value?PREFECTURES[regSel.value]||[]:Object.values(PREFECTURES).flat();dl.innerHTML=L.map(p=>`<option value="${esc(p)}">`).join("")};
-  regSel.addEventListener("change",()=>{const L=PREFECTURES[regSel.value]||[];if(prefInput.value&&regSel.value&&!L.includes(prefInput.value))prefInput.value="";fill()});fill()}
+// Sous-préfectures par préfecture. Source : fr.wikipedia.org/wiki/Sous-préfectures_de_Guinée (consultée le 25/11/2026).
+// Ce sont des suggestions : on peut toujours taper un autre nom.
+const SOUS_PREFECTURES={
+ "Boffa":["Boffa-Centre","Colia","Douprou","Koba-Tatema","Lisso","Mankountan","Tamita","Tougnifily"],
+ "Boké":["Bintimodia","Boké-Centre","Dabiss","Kamsar","Kanfarandé","Kolaboui","Malapouyah","Sangarédi","Sansalé","Tanènè"],
+ "Fria":["Banguinet","Banguingny","Fria-Centre","Tormelin"],
+ "Gaoual":["Foulamory","Gaoual-Centre","Kakony","Koumbia","Kounsitel","Malanta","Touba","Wendou M'Bour"],
+ "Koundara":["Guingan","Kamaby","Koundara-Centre","Sambaïlo","Saréboïdo","Termessé","Youkounkoun"],
+ "Coyah":["Coyah-Centre","Kouriah","Manéah","Wonkifong"],
+ "Dubréka":["Badi","Dubréka-Centre","Faléssadé","Khorira","Ouassou","Tanènè","Tondon"],
+ "Forécariah":["Alassoyah","Benty","Farmoriyah","Forécariah-Centre","Kaback","Kakossa","Kallia","Maferenya","Moussayah","Sikhourou"],
+ "Kindia":["Bangouya","Damankaniah","Friguiagbé","Kindia-Centre","Kolenté","Linsan","Madina-Oula","Mambiya","Molota","Samaya","Souguéta"],
+ "Télimélé":["Bourouwal","Daramagnaki","Gougoudjé","Kawessi","Koba","Kollet","Konsotami","Missira","Santou","Sarékaly","Sinta","Sogolon","Tarihoye","Télimélé-Centre","Thionthian"],
+ "Dalaba":["Bodié","Dalaba-Centre","Ditinn","Kaala","Kankalabé","Kébali","Koba","Mafara","Mitty","Mombéyah"],
+ "Mamou":["Bouliwel","Dounet","Gongorèt","Kégnéko","Konkouré","Mamou-Centre","Nyagara","Ouré-Kaba","Porédaka","Saramoussayah","Soyah","Téguéréya","Timbo","Tolo"],
+ "Pita":["Bantignel","Bourouwal-Tappé","Donghol-Touma","Gongorè","Ley-Miro","Maci","Ninguélandé","Pita-Centre","Sangaréyah","Sintali","Timbi-Madina","Timbi-Touny"],
+ "Koubia":["Fafaya","Gadha-Woundou","Koubia-Centre","Matakaou","Missira","Pilimini"],
+ "Labé":["Dalein","Daralabe","Diari","Dionfo","Garambé","Hafia","Kaalan","Kouramandji","Labé-Centre","Noussy","Popodara","Sannoun","Tarambaly","Tountouroun"],
+ "Lélouma":["Balaya","Djountou","Hérico","Korbè","Lafou","Lélouma-Centre","Linsan","Manda","Parawol","Sagalé","Tyanguel-Bori"],
+ "Mali":["Badougoula","Balaki","Donghol-Sigon","Dougountouny","Fougou","Gayah","Hidayatou","Lébékéré","Madina-Salambandé","Madina-Wora","Mali-Centre","Téliré","Touba","Yembereng"],
+ "Tougué":["Fatako","Fello-Koundoua","Kansangui","Koïn","Kolangui","Kollet","Konah","Kouratongo","Tangali","Tougué-Centre"],
+ "Dabola":["Arfamoussaya","Bambaya","Banko","Bantoun","Bissikrima","Dabola-Centre","Dantilia","Dogomet","Kankama","Kindoye","Konendou","Ndéma"],
+ "Dinguiraye":["Banora","Dialakoro","Diatifèrè","Dinguiraye-Centre","Gagnakaly","Kalinko","Lansanaya","Sélouma"],
+ "Faranah":["Banian","Beindou","Faranah-Centre","Gnaléah","Hérémakonon","Kobikoro","Marela","Passaya","Sandéniyah","Songoyah","Tindo","Tiro"],
+ "Kissidougou":["Albadariah","Banama","Bardou","Beindou","Fermessadou-Pombo","Firawa-Yomadou","Gbangbadou","Kissidougou-Centre","Koundiatou","Manfran","Sangardo","Yendé-Millimou","Yombiro"],
+ "Kankan":["Balandougou","Baté-Nafadji","Boula","Djélibakoro","Djimbala","Fodécariah-Balimana","Gbérédou-Baranama","Kanfamoriya","Kankan-Centre","Koumba","Mamouroudou","Misamana","Moribayah","Sabadou-Baranama","Tinti-Oulen","Tokounou"],
+ "Kérouané":["Banankoro","Damaro","Kérouané-Centre","Komodou","Kounsankoro","Linko","Sibiribaro","Soromayah"],
+ "Kouroussa":["Babila","Balato","Banfèlè","Baro","Cisséla","Douako","Doura","Fadou-Saba","Kansereah","Kiniéro","Komola-Koura","Koumana","Kouroussa-Centre","Sanguiana"],
+ "Mandiana":["Balandougouba","Dialakoro","Faralako","Kantoumania","Kiniéran","Koudianakoro","Koundian","Mandiana-Centre","Morodou","Niantanina","Saladou","Sansando"],
+ "Siguiri":["Bankon","Didi","Diomabana","Doko","Fidako","Franwalia","Kiniébakora","Kintinian","Koumandjanbougou","Kourémalé","Maléah","Mignada","Naboun","Niagassola","Niandankoro","Norassoba","Nounkounkan","Siguiri-Centre","Siguirini","Tomba-Kanssa","Tomboni"],
+ "Beyla":["Beyla-Centre","Boola","Diarraguerela","Diassadou","Fouala","Gbackédou","Gbéssoba","Karala","Koumandou","Mousadou","Nionsomoridou","Samana","Sinko","Sokourala","Tiéwa"],
+ "Guéckédou":["Bolodou","Fangamadou","Guéckédou-Centre","Guéndembou","Kassadou","Koundou","Nongoa","Ouéndé-Kénéma","Tékoulo","Terméssadou-Djibo"],
+ "Lola":["Bossou","Foumbadou","Gama-Berema","Guéassou","Kokota","Laine","Lola-Centre","N'Zoo","Tounkarata"],
+ "Macenta":["Balizia","Binikala","Bofossou","Daro","Fassankoni","Kouankan","Koyama","Macenta-Centre","N'Zébéla","Ourémaï","Panziazou","Sengbédou","Sérédou","Vasérédou","Watanka"],
+ "N'Zérékoré":["Bounouma","Gouécké","Kobéla","Koropara","Koulé","N'Zérékoré-Centre","Palé","Samoé","Soulouta","Womey","Yalenzou"],
+ "Yomou":["Banié","Bheeta","Bignamou","Bowé","Diécké","Péla","Yomou-Centre"]};
+// Relie région → préfecture → sous-préfecture : chaque liste de suggestions suit le choix précédent.
+function linkLieu(regSel,prefInput,spInput){
+  const dl=i=>i&&document.getElementById(i.getAttribute("list"));
+  const opts=(el,L)=>{if(el)el.innerHTML=[...new Set(L)].sort((a,b)=>a.localeCompare(b,"fr")).map(p=>`<option value="${esc(p)}">`).join("")};
+  const prefs=()=>regSel?.value?PREFECTURES[regSel.value]||[]:Object.values(PREFECTURES).flat();
+  const fillPref=()=>opts(dl(prefInput),prefs());
+  const fillSp=()=>{if(!spInput)return;const p=prefInput?.value;opts(dl(spInput),SOUS_PREFECTURES[p]||(p?[]:prefs().flatMap(x=>SOUS_PREFECTURES[x]||[])))};
+  regSel?.addEventListener("change",()=>{if(prefInput?.value&&regSel.value&&!prefs().includes(prefInput.value))prefInput.value="";fillPref();fillSp()});
+  prefInput?.addEventListener("input",fillSp);prefInput?.addEventListener("change",fillSp);
+  fillPref();fillSp();
+}
+// Lieu d'un reportage, en clair : « Timbi-Madina, sous-préfecture de …, préfecture de …, région de … ».
+const lieuRep=r=>[r.village,r.sousPrefecture&&r.sousPrefecture!==r.village&&"sous-préfecture de "+r.sousPrefecture,
+  r.prefecture&&(r.region==="Conakry"?"commune de ":"préfecture de ")+r.prefecture,r.region&&(r.region==="Conakry"?"Conakry":"région de "+r.region)].filter(Boolean).join(", ");
 // Lignes de localisation d'un client (pour la fiche et les reçus).
 const lieuClient=c=>!c?[]:[c.region&&"Région : "+c.region,c.prefecture&&(c.region==="Conakry"?"Commune : ":"Préfecture : ")+c.prefecture,c.sousPrefecture&&"Sous-préfecture : "+c.sousPrefecture,c.adresse&&"Adresse : "+c.adresse].filter(Boolean);
 const MOYENS=["Orange Money","MTN MoMo","Espèces","Transfert (WU, Ria…)","Autre"];
@@ -263,7 +309,7 @@ const nbPj=(c,id)=>{const n=S.files.filter(f=>f.coll===c&&f.docid===id).length;r
 function vReps(){
   const L=filteredReps();
   const o=(a,v,s)=>`<option value="${esc(v)}" ${s===v?"selected":""}>${esc(a)}</option>`;
-  const sub=r=>`<div class="note">${esc(r.village)}${r.region?" · "+esc(r.region):""}${(r.plateformes||[]).length?" · "+esc(r.plateformes.join(", ")):""}</div>`;
+  const sub=r=>`<div class="note">${esc([r.village,r.sousPrefecture!==r.village&&r.sousPrefecture,r.prefecture,r.region].filter(Boolean).join(" · "))}${(r.plateformes||[]).length?" · "+esc(r.plateformes.join(", ")):""}</div>`;
   const tit=r=>`<strong>${esc(r.titre)}</strong>${nbPj("reportages",r.id)}${r._pending?' <span class="pill p-wait">en attente</span>':""}${sub(r)}`;
   const rows=ADM()
     ?`<thead><tr><th>Date</th><th>Reportage</th><th>Client</th><th>Collaborateur</th><th>Statut</th><th>Paiement</th><th class="n">Prix</th><th class="n">Marge</th></tr></thead><tbody>${L.map(r=>{const p=pay(r);return `<tr class="click" data-edit="rep:${esc(r.id)}"><td style="white-space:nowrap">${dt(r.date)}</td><td>${tit(r)}</td><td>${esc(cliNom(r))}</td><td>${esc(colName(r.collab))}</td><td>${esc(r.statut)}</td><td><span class="pill ${p[1]}">${p[0]}</span></td><td class="n">${gnf(r.prix)}</td><td class="n">${gnf(marge(r))}</td></tr>`}).join("")}</tbody>`
@@ -399,12 +445,12 @@ async function loadActivity(){const box=$("#activity");if(!box)return;try{const 
 /* ---------- Formulaires ---------- */
 // [clé, libellé, type, obligatoire, options, accès]  accès : "adm" = caché aux collaborateurs, "ro" = lecture seule pour eux
 const FORMS={
- rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["region","Région","sel",0,REGIONS],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
+ rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","pref"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
   ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],["taux","Taux de change du reportage : 1 € = … GNF","num",0,null,"adm"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
  col:[["nom","Nom complet","text",1],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,REGIONS],["moyen","Moyen de paiement préféré","sel",0,MOYENS],["notes","Notes","area"]],
  ver:[["collab","Collaborateur","col",1],["date","Date","date"],["montant","Montant (GNF)","num",1],["moyen","Moyen","sel",0,MOYENS],["ref","Référence de transaction","text"],["rep","Pour le reportage (facultatif)","rep"],["notes","Notes","area"]],
- cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","text"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
+ cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["region","Région","sel",0,REGIONS],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","pref"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
 };
 for(const k in FORMS)for(const f of FORMS[k])FIELD_LBL[f[0]]??=f[1].replace(/ \(GNF\)$/,"");
 Object.assign(FIELD_LBL,{client:"Client",contact:"Téléphone du client",fichier:"Fichier",fiche:"Fiche",clientId:"Client"});
@@ -426,7 +472,7 @@ function openForm(kind,id){
       <div class="grid2 full" id="newcli" hidden><label>Nom du nouveau client<input name="_cnom"></label><label>Téléphone du client<input name="_ctel" type="tel"></label>
       <label>Région du client<select name="_creg"><option value="">—</option>${REGIONS.map(g=>`<option>${esc(g)}</option>`).join("")}</select></label>
       <label>Préfecture (commune à Conakry)<input name="_cpref" list="dl-cpref" autocomplete="off"><datalist id="dl-cpref"></datalist></label>
-      <label class="full">Sous-préfecture<input name="_csp"></label></div>`}
+      <label class="full">Sous-préfecture<input name="_csp" list="dl-csp" autocomplete="off"><datalist id="dl-csp"></datalist></label></div>`}
     if(t==="pref")return `<label>${l}<input name="${k}" list="dl-${k}" autocomplete="off" value="${esc(v)}"${dis}><datalist id="dl-${k}"></datalist></label>`;
     if(t==="sel"||t==="col"||t==="rep"){const o=t==="col"?S.col.slice().sort(byNom).map(c=>[c.id,c.nom]):t==="rep"?S.rep.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")).map(x=>[x.id,x.titre]):opts.map(x=>[x,x]);
       return `<label${cls}>${l}<select name="${k}"${r}${dis}><option value="">—</option>${o.map(([a,b])=>`<option value="${esc(a)}" ${a===v?"selected":""}>${esc(b)}</option>`).join("")}</select></label>`}
@@ -448,8 +494,9 @@ function openForm(kind,id){
   const frm=$("#frm");(frm.querySelector("input:not([disabled]),select:not([disabled])")||$("#x")).focus();
   if($("#fbox"))filesBox(pjColl,id,exists);
   $("#x").onclick=$("#cancel").onclick=closeModal;
-  linkPref(frm.querySelector("[name=_creg]"),frm.querySelector("[name=_cpref]"));
-  if(kind==="cli")linkPref(frm.querySelector("[name=region]"),frm.querySelector("[name=prefecture]"));
+  const q=n=>frm.querySelector(`[name=${n}]`);
+  if(q("_creg"))linkLieu(q("_creg"),q("_cpref"),q("_csp"));
+  if(kind==="cli"||kind==="rep")linkLieu(q("region"),q("prefecture"),q("sousPrefecture"));
   const cs=frm.querySelector("[name=clientId]");if(cs)cs.onchange=()=>{const n=cs.value==="__new";$("#newcli").hidden=!n;if(n)frm._cnom.focus()};
   frm.querySelectorAll("[data-money]").forEach(moneyInput);
   const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
@@ -524,7 +571,7 @@ function recuData(r){
   const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et "),t=num(r.taux)||num(c.taux);
   return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
     no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
-    detail:[[r.village,r.region].filter(Boolean).join(", "),r.date&&"tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · "),
+    detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · ")].filter(Boolean).join("\n"),
     eurTxt:t?"Équivalent indicatif : "+eur(prix,t)+" (1 € = "+new Intl.NumberFormat("fr-FR").format(t)+" GNF).":""};
 }
 // La signature est gardée dans le dossier protégé du serveur, qui ne la donne qu'au propriétaire.
@@ -547,7 +594,7 @@ async function recuPrint(r){
   <div class="flag"></div>
   <p><strong>${D.paye?"Reçu de":"Facturé à"} :</strong><br>${esc(D.nom)||"—"}${D.tel?"<br>"+esc(D.tel):""}${D.lieux.map(l=>"<br>"+esc(l)).join("")}</p>
   <table><thead><tr><th>Désignation</th><th class="n">Montant</th></tr></thead><tbody>
-  <tr><td>Reportage « ${esc(r.titre)} »<br><span style="color:#555">${esc(D.detail)}</span></td><td class="n">${gnf(D.prix)}</td></tr>
+  <tr><td>Reportage « ${esc(r.titre)} »<br><span style="color:#555;white-space:pre-line">${esc(D.detail)}</span></td><td class="n">${gnf(D.prix)}</td></tr>
   <tr><td style="text-align:right"><strong>Total</strong></td><td class="n"><strong>${gnf(D.prix)}</strong></td></tr>
   <tr><td style="text-align:right">Déjà payé</td><td class="n">${gnf(D.enc)}</td></tr>
   <tr><td style="text-align:right"><strong>${D.paye?"Solde":"Reste à payer"}</strong></td><td class="n"><strong>${gnf(Math.max(0,D.reste))}</strong></td></tr></tbody></table>

@@ -592,7 +592,8 @@ function recuData(r){
   const cli=S.cli.find(x=>x.id===r.clientId),plat=[].concat(r.plateformes||[]).join(" et ");
   return {c,prix,enc,reste,paye,titre:paye?"REÇU":"FACTURE",nom:cli?.nom||r.client||"",tel:cli?.tel||r.contact||"",lieux:lieuClient(cli),
     no:"TDG-"+String(r.date||today()).slice(0,4)+"-"+String(r.id).slice(0,6).toUpperCase(),
-    detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · ")].filter(Boolean).join("\n")};
+    detail:[lieuRep(r)&&"Lieu : "+lieuRep(r),[r.date&&"Tournage le "+dt(r.date),plat&&"diffusion sur "+plat].filter(Boolean).join(" · "),
+      r.collab&&S.col.some(x=>x.id===r.collab)&&"Reporter : "+colName(r.collab)].filter(Boolean).join("\n")};
 }
 // La signature est gardée dans le dossier protégé du serveur, qui ne la donne qu'au propriétaire.
 let sigP=null;

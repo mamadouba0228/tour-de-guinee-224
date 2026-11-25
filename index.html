@@ -140,6 +140,15 @@ let view="tableau",F={q:"",st:"",co:"",pay:""},ST={an:null,m:"prix"},installEvt=
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>Number(v)||0;
+// Montants saisis à la main : on accepte « 2 000 000 », « 2000000 », « 2.000.000 »… et on garde seulement les chiffres.
+const pn=v=>Number(String(v??"").replace(/\D/g,""))||0;
+const grp=v=>String(Math.round(Math.abs(num(v)))).replace(/\B(?=(\d{3})+(?!\d))/g," ");
+// Pendant la frappe : sépare les milliers par des espaces sans déplacer le curseur.
+function moneyInput(i){i.addEventListener("input",()=>{
+  const pos=i.selectionStart??i.value.length,before=i.value.slice(0,pos).replace(/\D/g,"").length;
+  const d=i.value.replace(/\D/g,"").replace(/^0+(?=\d)/,"");i.value=d.replace(/\B(?=(\d{3})+(?!\d))/g," ");
+  let p=0,c=0;while(p<i.value.length&&c<before){if(/\d/.test(i.value[p]))c++;p++}
+  try{i.setSelectionRange(p,p)}catch(_){}})}
 const gnf=v=>new Intl.NumberFormat("fr-FR").format(Math.round(num(v)))+" GNF";
 const fmtE=x=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(x);
 const tauxDe=r=>num(r?.taux)||num(S.cfg.taux)||1;           // taux du reportage, sinon taux actuel
@@ -323,7 +332,7 @@ function vCfg(){
   <p class="note">Une fois ouverte au moins une fois avec du réseau, l’application s’ouvre aussi sans connexion. Les reportages saisis hors connexion sont envoyés automatiquement au retour du réseau.</p></div>
   <div class="sec"><h3>Changer mon mot de passe</h3><form id="mypw" class="grid2"><label>Mot de passe actuel<input name="ancien" type="password" required autocomplete="current-password"></label><label>Nouveau mot de passe (8 caractères min.)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label><div class="full"><button>Changer</button></div></form></div>
   ${ADM()?`
-  <div class="sec"><h3>Taux de change</h3><form id="frmTaux" class="row"><label style="flex:1 1 240px">1 € = combien de GNF ?<input name="taux" type="number" inputmode="numeric" min="1" value="${esc(c.taux)}"></label><button class="pri" style="align-self:end">Enregistrer le taux</button></form>
+  <div class="sec"><h3>Taux de change</h3><form id="frmTaux" class="row"><label style="flex:1 1 240px">1 € = combien de GNF ?<input name="taux" type="text" inputmode="numeric" autocomplete="off" data-money value="${esc(grp(c.taux))}"></label><button class="pri" style="align-self:end">Enregistrer le taux</button></form>
   <p class="note">Chaque nouveau reportage garde le taux du jour où il est créé : changer le taux ici ne modifie pas les montants en euros des anciens reportages.</p></div>
   <div class="sec"><h3>Informations sur les reçus et factures</h3><form id="frmEnt" class="grid2">
   <label>Nom de l’entreprise<input name="entreprise" value="${esc(c.entreprise||"Tour de Guinée 224")}"></label><label>Téléphone<input name="entTel" type="tel" value="${esc(c.entTel)}"></label>
@@ -398,7 +407,8 @@ function openForm(kind,id){
       return `<label${cls}>${l}<select name="${k}"${r}${dis}><option value="">—</option>${o.map(([a,b])=>`<option value="${esc(a)}" ${a===v?"selected":""}>${esc(b)}</option>`).join("")}</select></label>`}
     if(t==="chk")return `<div class="full"><span style="font-size:14px;font-weight:600">${l}</span><div class="chk">${opts.map(o=>`<label><input type="checkbox" name="${k}" value="${o}" ${(d[k]||[]).includes(o)?"checked":""}${dis}>${o}</label>`).join("")}</div></div>`;
     if(t==="area")return `<label${cls}>${l}<textarea name="${k}"${dis}>${esc(v)}</textarea></label>`;
-    return `<label>${l}<input name="${k}" type="${t==="num"?"number":t}" ${t==="num"?'inputmode="numeric" min="0" step="1"':""} value="${esc(v)}"${r}${dis}></label>`};
+    if(t==="num")return `<label>${l}<input name="${k}" type="text" inputmode="numeric" autocomplete="off" data-money placeholder="ex. 1 500 000" value="${esc(v===""?"":grp(v))}"${r}${dis}></label>`;
+    return `<label>${l}<input name="${k}" type="${t}" value="${esc(v)}"${r}${dis}></label>`};
   const exists=!isNew&&!d._pending;
   const pjColl=kind==="cli"?"clients":COLL[kind];
   $("#dlg").innerHTML=`<form id="frm"><div class="row" style="margin-bottom:14px"><h2 class="sp" style="margin:0">${isNew?(kind==="ver"?"Nouveau versement":"Nouveau "+TITLES[kind].toLowerCase()):esc(d.titre||d.nom||TITLES[kind])}</h2><button type="button" id="x" aria-label="Fermer">✕</button></div>
@@ -413,16 +423,17 @@ function openForm(kind,id){
   if($("#fbox"))filesBox(pjColl,id,exists);
   $("#x").onclick=$("#cancel").onclick=closeModal;
   const cs=frm.querySelector("[name=clientId]");if(cs)cs.onchange=()=>{const n=cs.value==="__new";$("#newcli").hidden=!n;if(n)frm._cnom.focus()};
-  const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>num(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
+  frm.querySelectorAll("[data-money]").forEach(moneyInput);
+  const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
     c.innerHTML=`Marge : <strong>${gnf(m)}</strong> (≈ ${eur(m,t)}) · Reste à encaisser : <strong>${gnf(g("prix")-g("encaisse"))}</strong>${g("fraisDeclares")&&g("fraisDeclares")!==g("frais")?` · <button type="button" id="valFrais" style="min-height:32px">Valider les frais déclarés (${gnf(g("fraisDeclares"))})</button>`:""}`;
-    const vf=$("#valFrais");if(vf)vf.onclick=()=>{frm.frais.value=g("fraisDeclares");calc()}};
+    const vf=$("#valFrais");if(vf)vf.onclick=()=>{frm.frais.value=grp(g("fraisDeclares"));calc()}};
   frm.oninput=calc;calc();
   const h=$("#hist");if(h)h.ontoggle=async()=>{if(!h.open||h.dataset.l)return;h.dataset.l=1;try{const {hist}=await api("hist",{q:{coll:COLL[kind],id}});h.lastElementChild.outerHTML=`<div>${histHTML(hist)}</div>`}catch(e){h.lastElementChild.textContent=e.offline?"Indisponible hors connexion.":"Impossible de charger l’historique."}};
   if($("#recu"))$("#recu").onclick=()=>recu({...d,id}); // valeurs enregistrées de la fiche
   if($("#del"))$("#del").onclick=e=>{const b=e.currentTarget;if(!b.dataset.c){b.dataset.c=1;b.textContent="Confirmer la suppression";return}
     b.disabled=true;api("del",{body:{coll:COLL[kind],id}}).then(()=>{closeModal();toast("Supprimé");sync()}).catch(x=>{b.disabled=false;err(x)})};
   frm.onsubmit=async e=>{e.preventDefault();const f=new FormData(frm),o={};
-    for(const [k,,t,,,w] of fields){if(!ADM()&&w==="ro")continue;if(t==="cli")continue;o[k]=t==="chk"?f.getAll(k):t==="num"?num(f.get(k)):String(f.get(k)||"").trim()}
+    for(const [k,,t,,,w] of fields){if(!ADM()&&w==="ro")continue;if(t==="cli")continue;o[k]=t==="chk"?f.getAll(k):t==="num"?pn(f.get(k)):String(f.get(k)||"").trim()}
     const btn=frm.querySelector("[type=submit]");btn.disabled=true;
     if(kind==="rep"){
       let cid=String(f.get("clientId")||"");
@@ -516,6 +527,7 @@ function bind(){
   document.querySelectorAll("[data-edit]").forEach(el=>{const go=()=>{const [k,i]=el.dataset.edit.split(":");openForm(k,i)};el.onclick=go;el.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go()}}});
   const fq=$("#fq");if(fq){fq.oninput=()=>{F.q=fq.value;clearTimeout(fq.t);fq.t=setTimeout(()=>{render();const n=$("#fq");n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)};
     [["#fst","st"],["#fco","co"],["#fpay","pay"]].forEach(([s,k])=>{if($(s))$(s).onchange=e=>{F[k]=e.target.value;render()}})}
+  document.querySelectorAll("#app [data-money]").forEach(moneyInput);
   if($("#stAn"))$("#stAn").onchange=e=>{ST.an=e.target.value;render()};
   if($("#stM"))$("#stM").onchange=e=>{ST.m=e.target.value;render()};
   if($("#exp")&&window.TDG_DEMO)$("#exp").onclick=async e=>{e.preventDefault();try{const j=await api("export"),a=document.createElement("a");
@@ -524,7 +536,7 @@ function bind(){
   if($("#csvVer"))$("#csvVer").onclick=csvVer;
   if($("#flushNow"))$("#flushNow").onclick=async e=>{e.target.disabled=true;await sync();if(Q.get().length)toast(S.offline?"Toujours pas de réseau.":"Certaines modifications n’ont pas pu être envoyées.")};
   if($("#install"))$("#install").onclick=async()=>{installEvt.prompt();await installEvt.userChoice.catch(()=>{});installEvt=null;render()};
-  if($("#frmTaux"))$("#frmTaux").onsubmit=async e=>{e.preventDefault();const t=num(e.target.taux.value);if(t<=0)return toast("Taux invalide");await saveDoc("config","main",{taux:t},"taux");toast("Taux enregistré")};
+  if($("#frmTaux"))$("#frmTaux").onsubmit=async e=>{e.preventDefault();const t=pn(e.target.taux.value);if(t<=0)return toast("Taux invalide");await saveDoc("config","main",{taux:t},"taux");toast("Taux enregistré")};
   if($("#frmEnt"))$("#frmEnt").onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries([...new FormData(e.target)].map(([k,v])=>[k,String(v).trim()]));await saveDoc("config","main",o,"informations");toast("Informations enregistrées")};
   if($("#logout"))$("#logout").onclick=async e=>{const n=Q.get().length;if(n&&!confirmBtn(e.target,`Confirmer : ${n} modification(s) non envoyée(s) seront perdues`))return;
     await api("logout",{body:{}}).catch(()=>{});try{localStorage.removeItem("tdg_cache_"+S.me.id);localStorage.removeItem("tdg_last")}catch(_){}Q.set([]);S.me=null;S.ready=0;boot()};

@@ -1,6 +1,6 @@
 // Tour de Guinée 224 — garde l'application dans le téléphone pour qu'elle s'ouvre sans réseau.
 // Les données (api.php) ne passent pas par ici : l'application les garde elle-même.
-const CACHE = "tdg224-v2";
+const CACHE = "tdg224-v3";
 const SHELL = ["./", "index.html", "demo.js", "manifest.webmanifest", "icon.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

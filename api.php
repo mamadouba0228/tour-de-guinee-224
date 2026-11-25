@@ -3,9 +3,13 @@
 declare(strict_types=1);
 require __DIR__ . '/config.php';
 if (!defined('UPLOAD_DIR')) define('UPLOAD_DIR', dirname(DB_FILE) . '/uploads');
-if (!defined('FILES_QUOTA')) define('FILES_QUOTA', 80 * 1024 * 1024); // 80 Mo pour les photos (offre gratuite : 100 Mo au total)
+if (!defined('FILES_QUOTA')) define('FILES_QUOTA', 30 * 1024 * 1024); // 30 Mo pour les photos : l'offre gratuite (100 Mo) est partagée avec les autres sites du compte
 
-session_set_cookie_params(['lifetime' => 60*60*24*30, 'path' => '/', 'secure' => !empty($_SERVER['HTTPS']), 'httponly' => true, 'samesite' => 'Strict']);
+// Cookie de session propre à cette application et limité à son dossier (ex. /tdg224/),
+// pour ne jamais se mélanger avec les autres applications PHP du même compte.
+$base = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/'))), '/') . '/';
+session_name('tdg224_session');
+session_set_cookie_params(['lifetime' => 60*60*24*30, 'path' => $base, 'secure' => !empty($_SERVER['HTTPS']), 'httponly' => true, 'samesite' => 'Strict']);
 session_start();
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');

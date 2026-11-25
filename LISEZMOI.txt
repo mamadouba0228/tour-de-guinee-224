@@ -13,6 +13,13 @@ Contenu du dossier
   data/                 la base de données et les photos seront créées ici
                         automatiquement (dossier protégé)
 
+0. Vous avez déjà un compte alwaysdata avec d'autres sites ?
+   - Ne créez rien de nouveau : envoyez ce dossier dans un SOUS-DOSSIER de www,
+     par exemple www/tdg224/ . Le site sera https://VOTRE-COMPTE.alwaysdata.net/tdg224/
+     et vos autres sites ne sont pas touchés (passez directement à l'étape 3).
+   - L'espace (100 Mo en offre gratuite) est partagé : les photos de cette application
+     sont limitées à 30 Mo (réglable dans config.php).
+
 1. Créer le compte
    - Allez sur https://www.alwaysdata.com/fr/ et inscrivez-vous (offre gratuite 100 Mo,
      sans carte bancaire).

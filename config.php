@@ -9,5 +9,6 @@ const SETUP_CODE = 'changez-moi-224';
 const DB_FILE = __DIR__ . '/data/tdg224.sqlite';
 
 // 3) Photos et pièces jointes : rangées dans data/uploads (protégé lui aussi).
-//    Espace maximum pour les photos, en octets (80 Mo par défaut, l'offre gratuite donne 100 Mo en tout).
-// const FILES_QUOTA = 80 * 1024 * 1024;
+//    Espace maximum pour les photos (30 Mo par défaut). Les 100 Mo de l'offre gratuite sont partagés
+//    avec les autres sites du compte : pour changer la limite, retirez les // et ajustez le nombre de Mo.
+// const FILES_QUOTA = 30 * 1024 * 1024;

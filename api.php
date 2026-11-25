@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (($_SERVER['HTTP_X_TDG'] ?? '') !== '1') fail('Requête refusée', 403);
   if (!str_starts_with((string) ($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/')) $in = json_decode(file_get_contents('php://input') ?: '{}', true) ?: [];
 }
-$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'user_role', 'recu', 'upload', 'file_del', 'import'];
+$POST_ONLY = ['setup', 'login', 'logout', 'save', 'del', 'user_add', 'user_pw', 'user_del', 'user_link', 'user_role', 'recu', 'carte', 'upload', 'file_del', 'import'];
 if (in_array($a, $POST_ONLY, true) && $_SERVER['REQUEST_METHOD'] !== 'POST') fail('Méthode non autorisée', 405);
 
 switch ($a) {
@@ -288,7 +288,8 @@ switch ($a) {
   case 'upload':
     $u = need();
     $coll = (string) ($_POST['coll'] ?? ''); $docid = (string) ($_POST['docid'] ?? '');
-    if (!in_array($coll, ['reportages', 'versements', 'clients'], true) || !validId($docid)) fail('Données invalides');
+    // collaborateurs : photo pour la carte de collaborateur (administrateurs seulement, voir plus bas)
+    if (!in_array($coll, ['reportages', 'versements', 'clients', 'collaborateurs'], true) || !validId($docid)) fail('Données invalides');
     $row = getRow($coll, $docid);
     if (!$row) fail('Enregistrez d’abord la fiche, puis ajoutez les photos.');
     if (!isAdmin($u) && ($coll !== 'reportages' || $u['collab'] === '' || ($row['data']['collab'] ?? '') !== $u['collab'])) fail('Vous ne pouvez pas ajouter de pièce à cette fiche', 403);
@@ -376,6 +377,14 @@ switch ($a) {
   case 'users':
     need('admin');
     out(['users' => db()->query('SELECT id, nom, login, role, collab, owner FROM users ORDER BY owner DESC, role, nom')->fetchAll()]);
+
+  case 'carte':
+    // Carte de collaborateur : tous les administrateurs ; notée dans l'historique de la fiche.
+    $u = need('admin');
+    $id = (string) ($in['id'] ?? '');
+    if (!getRow('collaborateurs', $id)) fail('Collaborateur introuvable', 404);
+    journal($u, 'collaborateurs', $id, 'carte générée', ['numéro' => [null, short($in['numero'] ?? '')], 'signée' => [null, isOwner($u) ? 'oui' : 'non']]);
+    out(['ok' => true]);
 
   case 'recu':
     // Émission d'un reçu / d'une facture : réservé au propriétaire, et noté dans l'historique du reportage.

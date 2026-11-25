@@ -29,7 +29,7 @@
     });
     docs.reportages.r8 = doc({ titre: "Concert de quartier (ancien reportage)", village: "Ratoma", region: "Conakry", client: "Studio Kalum", contact: "622 00 00 00", collab: "c2", statut: "Publié", date: d(1, 28), prix: 900000, encaisse: 900000, partCollab: 150000, frais: 30000, plateformes: ["TikTok"] });
     docs.collaborateurs = {
-      c1: doc({ nom: "Alpha (démo)", tel: "620 11 11 11", region: "Labé", moyen: "Orange Money" }),
+      c1: doc({ nom: "Alpha (démo)", tel: "620 11 11 11", region: "Labé", moyen: "Orange Money", fonction: "Reporter", adresse: "Popodara, Labé" }),
       c2: doc({ nom: "Binta (démo)", tel: "621 22 22 22", region: "Conakry", moyen: "MTN MoMo" }),
       c3: doc({ nom: "Sékou (démo)", tel: "622 33 33 33", region: "Kankan", moyen: "Orange Money" })
     };
@@ -226,6 +226,12 @@
         return R({ n });
       }
       case "users": if ((x = need(true))) return x; return R({ users: db.users.map(({ pw, ...z }) => ({ ...z, owner: z.owner ? 1 : 0 })).sort((a, b) => b.owner - a.owner) });
+      case "carte": {
+        if ((x = need(true))) return x;
+        if (!db.docs.collaborateurs[body.id]) return E("Collaborateur introuvable", 404);
+        journal(u, "collaborateurs", body.id, "carte générée", { "numéro": [null, short(body.numero)], "signée": [null, u.owner ? "oui" : "non"] }); save();
+        return R({ ok: true });
+      }
       case "recu": {
         if ((x = need(true))) return x;
         if (!u.owner) return E("Seul le propriétaire peut émettre les reçus.", 403);

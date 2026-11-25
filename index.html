@@ -127,6 +127,7 @@ table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-bl
 {
 const STATUTS=["Demande","Planifié","Tournage","Montage","Publié"];
 const REGIONS=["Conakry","Boké","Kindia","Mamou","Labé","Faranah","Kankan","N'Zérékoré"];
+const ZONES=["Toute la Guinée",...REGIONS]; // zone couverte par un collaborateur
 // Préfectures par région (Conakry : communes). Proposées en suggestions ; on peut aussi taper un autre nom.
 const PREFECTURES={"Conakry":["Kaloum","Dixinn","Matam","Ratoma","Matoto"],"Boké":["Boffa","Boké","Fria","Gaoual","Koundara"],
  "Kindia":["Coyah","Dubréka","Forécariah","Kindia","Télimélé"],"Mamou":["Dalaba","Mamou","Pita"],"Labé":["Koubia","Labé","Lélouma","Mali","Tougué"],
@@ -405,6 +406,14 @@ function vCfg(){
   <p class="note">Une fois ouverte au moins une fois avec du réseau, l’application s’ouvre aussi sans connexion. Les reportages saisis hors connexion sont envoyés automatiquement au retour du réseau.</p></div>
   <div class="sec"><h3>Changer mon mot de passe</h3><form id="mypw" class="grid2"><label>Mot de passe actuel<input name="ancien" type="password" required autocomplete="current-password"></label><label>Nouveau mot de passe (8 caractères min.)<input name="password" type="password" minlength="8" required autocomplete="new-password"></label><div class="full"><button>Changer</button></div></form></div>
   ${ADM()?`
+  <div class="sec"><h3>Cartes de collaborateur</h3><p class="note">Textes imprimés sur les cartes (bouton « Carte de collaborateur » dans la fiche de chaque collaborateur). Le contact du verso est la personne à appeler pour vérifier une carte.</p>
+  <form id="frmCarte" class="grid2">
+  <label class="full">Sous-titre du recto<input name="carteSousTitre" value="${esc(carteCfg().carteSousTitre)}"></label>
+  <label class="full">Devise (verso)<textarea name="carteVision">${esc(carteCfg().carteVision)}</textarea></label>
+  <label>Fonction du contact<input name="carteContactRole" placeholder="ex. Coadministrateur" value="${esc(c.carteContactRole)}"></label>
+  <label>Nom du contact<input name="carteContactNom" value="${esc(c.carteContactNom)}"></label>
+  <label>WhatsApp du contact<input name="carteContactTel" type="tel" placeholder="+224 6xx xx xx xx" value="${esc(c.carteContactTel)}"></label>
+  <div class="full"><button class="pri">Enregistrer</button></div></form></div>
   <div class="sec"><h3>Taux de change</h3><form id="frmTaux" class="row"><label style="flex:1 1 240px">1 € = combien de GNF ?<input name="taux" type="text" inputmode="numeric" autocomplete="off" data-money value="${esc(grp(c.taux))}"></label><button class="pri" style="align-self:end">Enregistrer le taux</button></form>
   <p class="note">Chaque nouveau reportage garde le taux du jour où il est créé : changer le taux ici ne modifie pas les montants en euros des anciens reportages.</p></div>
   ${OWNER()?`<div class="sec"><h3>Informations sur les reçus et factures</h3><p class="note">Vous êtes le propriétaire : vous seul émettez les reçus et les envoyez par WhatsApp. Votre signature est gardée dans le dossier protégé data du serveur (fichier signature.svg).</p><form id="frmEnt" class="grid2">
@@ -461,7 +470,8 @@ const FORMS={
  rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
   ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],["taux","Taux de change du reportage : 1 € = … GNF","num",0,null,"adm"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
- col:[["nom","Nom complet","text",1],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,REGIONS],["moyen","Moyen de paiement préféré","sel",0,MOYENS],["notes","Notes","area"]],
+ col:[["nom","Nom complet","text",1],["fonction","Fonction (sur la carte)","text"],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,ZONES],["adresse","Adresse (ex. Hérico, Lélouma)","text"],["moyen","Moyen de paiement préféré","sel",0,MOYENS],
+  ["numeroCarte","N° de carte (automatique si vide)","text"],["dateDelivrance","Date de délivrance de la carte","date"],["validite","Carte valable jusqu’au","date"],["notes","Notes","area"]],
  ver:[["collab","Collaborateur","col",1],["date","Date","date"],["montant","Montant (GNF)","num",1],["moyen","Moyen","sel",0,MOYENS],["ref","Référence de transaction","text"],["rep","Pour le reportage (facultatif)","rep"],["notes","Notes","area"]],
  cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
 };
@@ -474,7 +484,7 @@ const canEdit=(kind,d={})=>ADM()||(kind==="rep"&&!!MYCOL()&&(!d.collab||d.collab
 
 function openForm(kind,id){
   const isNew=!id;id=id||newId();
-  const d=isNew?{rep:{statut:"Demande",date:today(),taux:S.cfg.taux,collab:ADM()?"":MYCOL()},ver:{date:today()}}[kind]||{}:(S[kind].find(x=>x.id===id)||{});
+  const d=isNew?{rep:{statut:"Demande",date:today(),taux:S.cfg.taux,collab:ADM()?"":MYCOL()},ver:{date:today()},col:{fonction:"Reporter",region:"Toute la Guinée"}}[kind]||{}:(S[kind].find(x=>x.id===id)||{});
   const edit=canEdit(kind,d);
   const autre=!ADM()&&kind==="rep"&&!isNew&&d.collab!==MYCOL(); // reportage d'un autre collaborateur
   const fields=FORMS[kind].filter(f=>(ADM()||f[5]!=="adm")&&!(autre&&["partCollab","frais","fraisDeclares"].includes(f[0])));
@@ -497,11 +507,12 @@ function openForm(kind,id){
   $("#dlg").innerHTML=`<form id="frm"><div class="row" style="margin-bottom:14px"><h2 class="sp" style="margin:0">${isNew?(kind==="ver"?"Nouveau versement":"Nouveau "+TITLES[kind].toLowerCase()):esc(d.titre||d.nom||TITLES[kind])}</h2><button type="button" id="x" aria-label="Fermer">✕</button></div>
   <div class="grid2">${fields.map(fld).join("")}${kind==="rep"&&ADM()?'<div class="full calc" id="calc"></div>':""}
   ${autre?`<p class="note full" style="margin:0">Reportage de <strong>${esc(colName(d.collab))}</strong> : lecture seule.</p>`:""}
-  ${kind!=="col"&&!autre?`<div class="full" id="fbox"></div>`:""}
+  ${!autre&&(kind!=="col"||ADM())?`<div class="full" id="fbox"></div>`:""}
+  ${kind==="col"&&ADM()?'<p class="note full" style="margin:-4px 0 0">La photo la plus récente ajoutée ici sert pour la carte de collaborateur (photo d’identité, de face).</p>':""}
   ${kind==="cli"&&!isNew?cliReps(id):""}
   ${d._maj?`<p class="note full" style="margin:0">Dernière modification le ${dtt(d._maj)}${d._par?" par "+esc(d._par):""}.</p>`:""}
   ${ADM()&&exists?'<details class="full" id="hist"><summary>Historique des modifications</summary><div class="note">Chargement…</div></details>':""}</div>
-  <div class="row" style="margin-top:16px">${exists&&ADM()?'<button type="button" class="dng" id="del">Supprimer</button>':""}${kind==="rep"&&OWNER()&&exists?'<button type="button" id="recuPrint">Reçu : imprimer / PDF</button><button type="button" id="recuWa">Envoyer par WhatsApp</button>':""}<span class="sp"></span><button type="button" id="cancel">${edit?"Annuler":"Fermer"}</button>${edit?'<button class="pri" type="submit">Enregistrer</button>':""}</div></form>`;
+  <div class="row" style="margin-top:16px">${exists&&ADM()?'<button type="button" class="dng" id="del">Supprimer</button>':""}${kind==="rep"&&OWNER()&&exists?'<button type="button" id="recuPrint">Reçu : imprimer / PDF</button><button type="button" id="recuWa">Envoyer par WhatsApp</button>':""}${kind==="col"&&ADM()&&exists?'<button type="button" id="carte">Carte de collaborateur</button>':""}<span class="sp"></span><button type="button" id="cancel">${edit?"Annuler":"Fermer"}</button>${edit?'<button class="pri" type="submit">Enregistrer</button>':""}</div></form>`;
   $("#modal").hidden=false;
   const frm=$("#frm");(frm.querySelector("input:not([disabled]),select:not([disabled])")||$("#x")).focus();
   if($("#fbox"))filesBox(pjColl,id,exists);
@@ -516,6 +527,8 @@ function openForm(kind,id){
     const vf=$("#valFrais");if(vf)vf.onclick=()=>{frm.frais.value=grp(g("fraisDeclares"));calc()}};
   frm.oninput=calc;calc();
   const h=$("#hist");if(h)h.ontoggle=async()=>{if(!h.open||h.dataset.l)return;h.dataset.l=1;try{const {hist}=await api("hist",{q:{coll:COLL[kind],id}});h.lastElementChild.outerHTML=`<div>${histHTML(hist)}</div>`}catch(e){h.lastElementChild.textContent=e.offline?"Indisponible hors connexion.":"Impossible de charger l’historique."}};
+  if($("#carte"))$("#carte").onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent="Préparation de la carte…";
+    try{await openCarte({...d,id})}catch(x){toast("Carte impossible : "+x.message);b.disabled=false;b.textContent="Carte de collaborateur"}};
   if($("#recuPrint")){ // valeurs enregistrées de la fiche ; images préchargées pour que le partage parte tout de suite
     const pre=Promise.all([loadImg("logo2.jpg"),loadSig().then(loadImg)]);
     $("#recuPrint").onclick=()=>recuPrint({...d,id});
@@ -662,20 +675,121 @@ function drawRecu(D,r,logo,sig){
   return cv;
 }
 // PDF d'une page contenant l'image JPEG du reçu (aucune bibliothèque externe).
-function jpegToPdf(jpg,w,h){
+// PDF de plusieurs pages, chacune remplie par une image JPEG (pages : [{jpg,w,h}], taille de page en points).
+function imagesToPdf(pages,PW,PH){
   const enc=new TextEncoder(),chunks=[],offs=[];let len=0;
   const add=b=>{if(typeof b==="string")b=enc.encode(b);chunks.push(b);len+=b.length};
   const obj=(n,s,stream)=>{offs[n]=len;add(`${n} 0 obj\n${s}\n`);if(stream){add("stream\n");add(stream);add("\nendstream\n")}add("endobj\n")};
-  const PW=595.28,PH=841.89,content=`q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+  const content=`q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`,kids=pages.map((_,i)=>`${3+i*3} 0 R`).join(" ");
   add("%PDF-1.4\n");
   obj(1,"<< /Type /Catalog /Pages 2 0 R >>");
-  obj(2,"<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
-  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
-  obj(4,`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`,jpg);
-  obj(5,`<< /Length ${content.length} >>`,content);
-  const xr=len;
-  add(`xref\n0 6\n0000000000 65535 f \n${[1,2,3,4,5].map(n=>String(offs[n]).padStart(10,"0")+" 00000 n \n").join("")}trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
+  obj(2,`<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`);
+  pages.forEach(({jpg,w,h},i)=>{const n=3+i*3;
+    obj(n,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 ${n+1} 0 R >> >> /Contents ${n+2} 0 R >>`);
+    obj(n+1,`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`,jpg);
+    obj(n+2,`<< /Length ${content.length} >>`,content)});
+  const N=3+pages.length*3,xr=len;
+  add(`xref\n0 ${N}\n0000000000 65535 f \n${Array.from({length:N-1},(_,i)=>String(offs[i+1]).padStart(10,"0")+" 00000 n \n").join("")}trailer\n<< /Size ${N} /Root 1 0 R >>\nstartxref\n${xr}\n%%EOF\n`);
   return new Blob(chunks,{type:"application/pdf"});
+}
+const jpegToPdf=(jpg,w,h)=>imagesToPdf([{jpg,w,h}],595.28,841.89); // reçu : une page A4
+
+/* ---------- Carte de collaborateur (tous les administrateurs) ---------- */
+const CARTE_DEF={carteSousTitre:"Reportages sur nos villages · Facebook & TikTok",
+  carteVision:"Le développement de nos villages, la protection de l’environnement, la connaissance de notre territoire et la sécurité routière, notre vision.",carteContactRole:"Responsable"};
+const carteCfg=()=>{const o={...CARTE_DEF};for(const [k,v] of Object.entries(S.cfg))if(k.startsWith("carte")&&String(v||"").trim())o[k]=v;return o};
+const dmy=d=>d?String(d).split("-").reverse().join("/"):"";
+const dLong=d=>d?new Date(d+"T12:00").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"}):"";
+const slug=s=>String(s||"carte").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"");
+function nextCarteNo(year){const re=new RegExp("^TDG-"+year+"-(\\d+)$");
+  const n=Math.max(0,...S.col.map(c=>+((String(c.numeroCarte||"").match(re)||[])[1]||0)));return `TDG-${year}-${String(n+1).padStart(3,"0")}`}
+// Photo de la carte : la dernière image ajoutée dans la fiche du collaborateur.
+function photoOf(id){const L=S.files.filter(f=>f.coll==="collaborateurs"&&f.docid===id&&f.mime.startsWith("image/")),f=L[L.length-1];
+  return f?(f.url||"api.php?a=file&id="+encodeURIComponent(f.id)):null}
+const CFONT=(w,z,titre)=>`${w} ${z}px ${titre?"Archivo, Inter":"Inter"}, Arial, sans-serif`;
+function rr(x,X,Y,W,H,R){x.beginPath();x.moveTo(X+R,Y);x.arcTo(X+W,Y,X+W,Y+H,R);x.arcTo(X+W,Y+H,X,Y+H,R);x.arcTo(X,Y+H,X,Y,R);x.arcTo(X,Y,X+W,Y,R);x.closePath()}
+function ellips(x,s,maxW){s=String(s||"");if(x.measureText(s).width<=maxW)return s;while(s&&x.measureText(s+"…").width>maxW)s=s.slice(0,-1);return s+"…"}
+function wrapC(x,s,maxW){const out=[];let l="";for(const m of String(s||"").split(/\s+/).filter(Boolean)){const t=l?l+" "+m:m;if(x.measureText(t).width>maxW&&l){out.push(l);l=m}else l=t}if(l)out.push(l);return out}
+function seal(x,logo,cx,cy,r){x.save();x.fillStyle="#fff";x.beginPath();x.arc(cx,cy,r,0,7);x.fill();
+  if(logo){x.beginPath();x.arc(cx,cy,r-7,0,7);x.clip();x.drawImage(logo,cx-r+7,cy-r+7,2*(r-7),2*(r-7))}x.restore()}
+const FLAG3=["#ce1126","#fcd116","#009460"];
+// Recto et verso : 1712 × 1080 px, format carte bancaire (85,6 × 54 mm).
+function drawRecto(c,K,logo,photo){
+  const W=1712,H=1080,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+  x.fillStyle="#fff";x.fillRect(0,0,W,H);x.fillStyle="#00804f";x.fillRect(0,0,W,245);
+  FLAG3.forEach((f,i)=>{x.fillStyle=f;x.fillRect(i*W/3,245,W/3+1,17)});
+  seal(x,logo,165,123,92);
+  x.textAlign="left";x.textBaseline="alphabetic";x.fillStyle="#fff";
+  x.font=CFONT(800,76,1);x.fillText("Tour de Guinée 224",292,128);
+  x.font=CFONT(500,30);x.fillText(ellips(x,K.carteSousTitre,950),292,175);
+  const fonction=c.fonction||"Reporter";x.font=CFONT(800,28,1);
+  const bl=wrapC(x,("Carte de "+fonction).toUpperCase(),318).slice(0,3),bh=Math.max(104,bl.length*34+34),by=123-bh/2;
+  rr(x,1276,by,362,bh,18);x.strokeStyle="#fcd116";x.lineWidth=4;x.stroke();
+  x.fillStyle="#fcd116";x.textAlign="center";bl.forEach((l,i)=>x.fillText(l,1457,by+17+28+i*34));
+  x.save();rr(x,72,304,352,440,24);x.fillStyle="#e7eee9";x.fill();x.clip();
+  if(photo){const k=Math.max(352/photo.naturalWidth,440/photo.naturalHeight),w=photo.naturalWidth*k,h=photo.naturalHeight*k;
+    x.drawImage(photo,72+(352-w)/2,304+(440-h)*0.25,w,h)}
+  else{x.fillStyle="#8a9a90";x.font=CFONT(800,120,1);x.textAlign="center";x.fillText(String(c.nom||"?").split(/\s+/).map(p=>p[0]).join("").slice(0,2).toUpperCase(),248,570)}
+  x.restore();rr(x,72,304,352,440,24);x.strokeStyle="#00804f";x.lineWidth=6;x.stroke();
+  const lab=(s,X,Y)=>{x.textAlign="left";x.fillStyle="#5b6b62";x.font=CFONT(500,26);x.fillText(s,X,Y)};
+  const val=(s,X,Y)=>{x.fillStyle="#15201a";x.font=CFONT(500,36);x.fillText(ellips(x,s||"—",560),X,Y)};
+  lab("Nom et prénom",492,338);
+  let z=72;x.font=CFONT(800,z,1);while(x.measureText(c.nom||"").width>1150&&z>40){z-=2;x.font=CFONT(800,z,1)}
+  x.fillStyle="#15201a";x.fillText(c.nom||"",492,422);
+  lab("Fonction",492,498);val(fonction,492,540);lab("Zone couverte",1090,498);val(c.region,1090,540);
+  lab("Téléphone",492,600);val(c.tel,492,642);lab("N° de carte",1090,600);val(c.numeroCarte,1090,642);
+  lab("Adresse",492,702);val(c.adresse,492,746);lab("Date de délivrance",1090,702);val(dmy(c.dateDelivrance),1090,746);
+  x.textAlign="left";x.font=CFONT(400,30);x.fillStyle="#5b6b62";const t1="Valable jusqu’au ";x.fillText(t1,72,1005);
+  const w1=x.measureText(t1).width;x.font=CFONT(700,30);x.fillStyle="#15201a";x.fillText(dLong(c.validite),72+w1,1005);
+  rr(x,1187,963,453,66,33);x.fillStyle="#fcd116";x.fill();x.fillStyle="#15201a";x.font=CFONT(600,30);x.textAlign="center";x.fillText("Suivez Tour de Guinée 224",1413,1007);
+  return cv;
+}
+function drawVerso(K,logo,sig){
+  const W=1712,H=1080,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
+  x.fillStyle="#00804f";x.fillRect(0,0,W,H);FLAG3.forEach((f,i)=>{x.fillStyle=f;x.fillRect(i*W/3,0,W/3+1,14)});
+  seal(x,logo,156,146,74);
+  x.textAlign="left";x.fillStyle="#fff";x.font=CFONT(800,46,1);x.fillText("Tour de Guinée 224",260,112);
+  x.fillStyle="#fcd116";x.font="italic "+CFONT(500,26);wrapC(x,K.carteVision,1390).slice(0,3).forEach((l,i)=>x.fillText(l,260,154+i*36));
+  x.fillStyle="#fff";x.font=CFONT(500,33);
+  wrapC(x,"Le porteur de cette carte est collaborateur de Tour de Guinée 224 et réalise des reportages dans les villages et préfectures de Guinée pour nos pages Facebook et TikTok. Merci de lui réserver un bon accueil et de faciliter son travail.",1550)
+    .slice(0,4).forEach((l,i)=>x.fillText(l,80,292+i*48));
+  rr(x,80,450,760,520,28);x.fillStyle="rgba(255,255,255,.13)";x.fill();
+  x.fillStyle="#fcd116";x.font=CFONT(600,25);x.fillText("Vérification et contact",116,506);
+  x.fillStyle="#fff";let y=562;
+  const ligne=(a,b)=>{x.font=CFONT(500,31);x.fillText(a,116,y);const w=x.measureText(a).width;x.font=CFONT(800,31);x.fillText(ellips(x,b,650-w),116+w,y);y+=56};
+  if(K.carteContactNom)ligne((K.carteContactRole||"Responsable")+" : ",K.carteContactNom);
+  if(K.carteContactTel)ligne("WhatsApp : ",K.carteContactTel);
+  x.font=CFONT(500,25);x.fillText("Carte trouvée ? Merci d’appeler ce numéro.",116,y+4);
+  rr(x,872,450,760,520,28);x.fillStyle="#fff";x.fill();
+  x.fillStyle="#5b6b62";x.font=CFONT(600,25);x.fillText("Signature et cachet du responsable",908,506);
+  if(sig){const k=sig.naturalWidth/sig.naturalHeight,w=Math.min(620,300*k),h=w/k;x.drawImage(sig,872+(760-w)/2,560+(330-h)/2,w,h)}
+  x.fillStyle="#c9cfcb";x.fillRect(908,930,688,3);
+  x.fillStyle="#fff";x.font=CFONT(500,23);x.fillText("Carte personnelle et non transférable. Elle reste la propriété de Tour de Guinée 224.",80,1036);
+  return cv;
+}
+async function openCarte(c){
+  // Numéro et dates fixés à la première génération, puis gardés dans la fiche.
+  const upd={},deliv=c.dateDelivrance||today();
+  if(!c.dateDelivrance)upd.dateDelivrance=deliv;
+  if(!c.validite)upd.validite=(+deliv.slice(0,4)+1)+"-12-31";
+  if(!c.numeroCarte)upd.numeroCarte=nextCarteNo(deliv.slice(0,4));
+  if(Object.keys(upd).length){await saveDoc("collaborateurs",c.id,{...upd,maj:new Date().toISOString()},c.nom);c={...c,...upd}}
+  try{await Promise.all([document.fonts.load(CFONT(800,40,1)),document.fonts.load(CFONT(500,30)),document.fonts.load(CFONT(700,30))])}catch(_){}
+  const [logo,photo,sig]=await Promise.all([loadImg("logo2.jpg"),loadImg(photoOf(c.id)),loadSig().then(loadImg)]);
+  const K=carteCfg(),r=drawRecto(c,K,logo,photo),v=drawVerso(K,logo,sig);
+  const jp=async cv=>({jpg:new Uint8Array(await (await new Promise(res=>cv.toBlob(res,"image/jpeg",.93))).arrayBuffer()),w:cv.width,h:cv.height});
+  const pdf=new File([imagesToPdf([await jp(r),await jp(v)],242.65,153.07)],`Carte-${slug(c.nom)}.pdf`,{type:"application/pdf"});
+  api("carte",{body:{id:c.id,numero:c.numeroCarte}}).catch(()=>{});
+  const share=navigator.canShare?.({files:[pdf]});
+  $("#dlg").innerHTML=`<div class="row" style="margin-bottom:10px"><h2 class="sp" style="margin:0">Carte de ${esc(c.nom)}</h2><button type="button" id="x" aria-label="Fermer">✕</button></div>
+  <p class="note">N° ${esc(c.numeroCarte)} · format carte bancaire (85,6 × 54 mm), recto et verso dans le même PDF.
+  ${sig?"Signée.":"Cadre « Signature et cachet » laissé vide : à signer et tamponner à la main."}${photo?"":" <strong>Aucune photo</strong> : ajoutez-en une dans la fiche du collaborateur."}${K.carteContactNom?"":" Contact du verso à renseigner dans Réglages › Cartes de collaborateur."}</p>
+  <p class="note" style="margin:10px 0 4px">Recto</p><img alt="Recto de la carte" src="${r.toDataURL("image/jpeg",.85)}" style="width:100%;border-radius:12px;border:1px solid var(--line)">
+  <p class="note" style="margin:10px 0 4px">Verso</p><img alt="Verso de la carte" src="${v.toDataURL("image/jpeg",.85)}" style="width:100%;border-radius:12px;border:1px solid var(--line)">
+  <div class="row" style="margin-top:14px"><button type="button" id="cBack">Retour à la fiche</button><span class="sp"></span><button type="button" id="cDl">Télécharger le PDF</button>${share?'<button type="button" class="pri" id="cShare">Partager</button>':""}</div>`;
+  $("#x").onclick=closeModal;$("#cBack").onclick=()=>openForm("col",c.id);
+  $("#cDl").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(pdf);a.download=pdf.name;document.body.append(a);a.click();setTimeout(()=>a.remove(),2000)};
+  if($("#cShare"))$("#cShare").onclick=()=>navigator.share({files:[pdf],title:pdf.name}).catch(()=>{});
 }
 // Numéro WhatsApp du client : 9 chiffres guinéens → indicatif 224 ajouté.
 const waNum=t=>{let d=String(t||"").replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.length===9)d="224"+d;return d.length>=11?d:""};
@@ -723,6 +837,7 @@ function bind(){
   if($("#csvVer"))$("#csvVer").onclick=csvVer;
   if($("#flushNow"))$("#flushNow").onclick=async e=>{e.target.disabled=true;await sync();if(Q.get().length)toast(S.offline?"Toujours pas de réseau.":"Certaines modifications n’ont pas pu être envoyées.")};
   if($("#install"))$("#install").onclick=async()=>{installEvt.prompt();await installEvt.userChoice.catch(()=>{});installEvt=null;render()};
+  if($("#frmCarte"))$("#frmCarte").onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries([...new FormData(e.target)].map(([k,v])=>[k,String(v).trim()]));await saveDoc("config","main",o,"cartes");toast("Textes des cartes enregistrés")};
   if($("#frmTaux"))$("#frmTaux").onsubmit=async e=>{e.preventDefault();const t=pn(e.target.taux.value);if(t<=0)return toast("Taux invalide");await saveDoc("config","main",{taux:t},"taux");toast("Taux enregistré")};
   if($("#frmEnt"))$("#frmEnt").onsubmit=async e=>{e.preventDefault();const o=Object.fromEntries([...new FormData(e.target)].map(([k,v])=>[k,String(v).trim()]));await saveDoc("config","main",o,"informations");toast("Informations enregistrées")};
   if($("#logout"))$("#logout").onclick=async e=>{const n=Q.get().length;if(n&&!confirmBtn(e.target,`Confirmer : ${n} modification(s) non envoyée(s) seront perdues`))return;
@@ -828,10 +943,11 @@ function authForm(setup){
   <label>Mot de passe<input name="password" type="password" required ${setup?'minlength="8" autocomplete="new-password"':'autocomplete="current-password"'}></label>
   <button class="pri">${setup?"Créer le compte":"Se connecter"}</button><p id="aerr" class="note" role="alert" style="color:var(--rouge)"></p></form></div>`;
   $("#auth").onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),b=e.target.querySelector("button");b.disabled=true;
-    try{const r=await api(setup?"setup":"login",{body:f});S.me=r.me;render();await sync()}catch(x){b.disabled=false;$("#aerr").textContent=x.message}};
+    try{const r=await api(setup?"setup":"login",{body:f});sigP=null;S.me=r.me;render();await sync()}catch(x){b.disabled=false;$("#aerr").textContent=x.message}};
 }
 async function boot(){
   S.ready=0;S.msg="";
+  if(sigP)sigP.then(u=>u&&URL.revokeObjectURL(u));sigP=null; // la signature du propriétaire ne reste pas en mémoire pour un autre compte
   try{const s=await api("status");
     if(s.me){S.me=s.me;render();sync()}else{S.me=null;render();authForm(s.setup)}}
   catch(e){

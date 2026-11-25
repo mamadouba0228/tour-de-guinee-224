@@ -222,10 +222,6 @@ function moneyInput(i){i.addEventListener("input",()=>{
   let p=0,c=0;while(p<i.value.length&&c<before){if(/\d/.test(i.value[p]))c++;p++}
   try{i.setSelectionRange(p,p)}catch(_){}})}
 const gnf=v=>new Intl.NumberFormat("fr-FR").format(Math.round(num(v)))+" GNF";
-const fmtE=x=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(x);
-const tauxDe=r=>num(r?.taux)||num(S.cfg.taux)||1;           // taux du reportage, sinon taux actuel
-const eur=(v,t)=>fmtE(num(v)/(num(t)||num(S.cfg.taux)||1));
-const sumE=(L,f)=>L.reduce((a,r)=>a+num(f(r))/tauxDe(r),0);  // somme en euros, chaque reportage à son propre taux
 const dt=d=>d?new Date(d+"T12:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}):"";
 const dtt=s=>s?new Date(s).toLocaleString("fr-FR",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -271,7 +267,7 @@ function banners(){
   return h;
 }
 
-const kM=(l,v,e,s="")=>`<div class="kpi"><span class="l">${l}</span><b>${gnf(v)}</b><small>≈ ${fmtE(e)} ${s}</small></div>`;
+const kM=(l,v,s="")=>`<div class="kpi"><span class="l">${l}</span><b>${gnf(v)}</b><small>${s.replace(/^· /,"")}</small></div>`;
 const kN=(l,n,s="")=>`<div class="kpi"><span class="l">${l}</span><b>${n}</b><small>${s}</small></div>`;
 
 function board(L){
@@ -286,7 +282,7 @@ function vDash(){
   const relance=R.filter(r=>pay(r)[0]!=="Payé"&&num(r.prix)>0);
   const fraisV=R.filter(r=>num(r.fraisDeclares)>0&&num(r.fraisDeclares)!==num(r.frais));
   return `<div class="row"><h2 class="sp">Où en sont les reportages</h2><button class="pri" data-new="rep">+ Nouveau reportage</button></div>
-  <div class="kpis">${kM("Facturé aux clients",tot,sumE(R,r=>r.prix))}${kM("Encaissé",enc,sumE(R,r=>r.encaisse))}${kM("Reste à encaisser",tot-enc,sumE(R,r=>num(r.prix)-num(r.encaisse)),"· "+relance.length+" à relancer")}${kM("À verser aux collaborateurs",duC,duC/(num(S.cfg.taux)||1),"· marge "+gnf(mg))}</div>
+  <div class="kpis">${kM("Facturé aux clients",tot)}${kM("Encaissé",enc)}${kM("Reste à encaisser",tot-enc,"· "+relance.length+" à relancer")}${kM("À verser aux collaborateurs",duC,"· marge "+gnf(mg))}</div>
   <h3>Tableau de production</h3>${board(R)}
   ${fraisV.length?`<h3>Frais déclarés à valider</h3><table class="stack"><thead><tr><th>Reportage</th><th>Collaborateur</th><th class="n">Déclarés</th><th class="n">Validés</th></tr></thead><tbody>${fraisV.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td>${esc(r.titre)}</td><td>${esc(colName(r.collab))}</td><td class="n">${gnf(r.fraisDeclares)}</td><td class="n">${gnf(r.frais)}</td></tr>`).join("")}</tbody></table>`:""}
   <h3>À relancer (paiement client)</h3>
@@ -294,9 +290,9 @@ function vDash(){
   <h3>Par collaborateur</h3>${barsCollab()}`;
 }
 function vDashCollab(){
-  const mine=S.rep.filter(r=>r.collab===MYCOL()),x=collabStats(MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length,t=num(S.cfg.taux)||1;
+  const mine=S.rep.filter(r=>r.collab===MYCOL()),x=collabStats(MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length;
   return `<div class="row"><h2 class="sp">Bonjour ${esc(S.me.nom)}</h2>${MYCOL()?'<button class="pri" data-new="rep">+ Nouveau reportage</button>':""}</div>
-  <div class="kpis">${kN("Mes reportages",x.n,enCours+" en cours")}${kM("Ce qui m’est dû",x.du,x.du/t,"· rémunération + frais validés")}${kM("Déjà reçu",x.verse,x.verse/t)}${kM("Reste à recevoir",x.reste,x.reste/t)}</div>
+  <div class="kpis">${kN("Mes reportages",x.n,enCours+" en cours")}${kM("Ce qui m’est dû",x.du,"· rémunération + frais validés")}${kM("Déjà reçu",x.verse)}${kM("Reste à recevoir",x.reste)}</div>
   <h3>Mes reportages</h3>${board(mine)}
   <p class="note">Les reportages de toute l’équipe sont dans l’onglet <a href="#reportages">Reportages</a> (${S.rep.length} au total).</p>`;
 }
@@ -376,7 +372,7 @@ function vStats(){
   return `<div class="row"><h2 class="sp">Statistiques</h2>
   <select id="stAn" aria-label="Période" style="width:auto">${o("Toutes les années","",ST.an)}${ans.map(a=>o(a,a,ST.an)).join("")}</select>
   <select id="stM" aria-label="Mesure" style="width:auto">${Object.entries(MESURES).map(([k,l])=>o(l,k,ST.m)).join("")}</select></div>
-  <div class="kpis">${kN("Reportages",L.length,ST.an?"en "+ST.an:"au total")}${kM("Facturé",tot,sumE(L,r=>r.prix))}${kM("Encaissé",enc,sumE(L,r=>r.encaisse))}${kM("Marge",mg,sumE(L,marge))}</div>
+  <div class="kpis">${kN("Reportages",L.length,ST.an?"en "+ST.an:"au total")}${kM("Facturé",tot)}${kM("Encaissé",enc)}${kM("Marge",mg)}</div>
   ${chart(MESURES[ST.m]+(ST.an?" par mois":" par année"),parTemps,fmt)}
   ${chart(MESURES[ST.m]+" par région",parRegion,fmt)}
   ${chart(MESURES[ST.m]+" par plateforme",parPlat,fmt,"Un reportage publié sur Facebook et sur TikTok compte dans les deux lignes.")}
@@ -466,7 +462,7 @@ async function loadActivity(){const box=$("#activity");if(!box)return;try{const 
 // [clé, libellé, type, obligatoire, options, accès]  accès : "adm" = caché aux collaborateurs, "ro" = lecture seule pour eux
 const FORMS={
  rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
-  ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],["taux","Taux de change du reportage : 1 € = … GNF","num",0,null,"adm"],
+  ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
  col:[["nom","Nom complet","text",1],["fonction","Fonction (sur la carte)","text"],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,ZONES],["adresse","Adresse (ex. Hérico, Lélouma)","text"],["moyen","Moyen de paiement préféré","sel",0,MOYENS],
   ["numeroCarte","N° de carte (automatique si vide)","text"],["dateDelivrance","Date de délivrance de la carte","date"],["validite","Carte valable jusqu’au","date"],["notes","Notes","area"]],
@@ -482,11 +478,11 @@ const canEdit=(kind,d={})=>ADM()||(kind==="rep"&&!!MYCOL()&&(!d.collab||d.collab
 
 function openForm(kind,id){
   const isNew=!id;id=id||newId();
-  const d=isNew?{rep:{statut:"Demande",date:today(),taux:S.cfg.taux,collab:ADM()?"":MYCOL()},ver:{date:today()},col:{fonction:"Reporter",region:"Toute la Guinée"}}[kind]||{}:(S[kind].find(x=>x.id===id)||{});
+  const d=isNew?{rep:{statut:"Demande",date:today(),collab:ADM()?"":MYCOL()},ver:{date:today()},col:{fonction:"Reporter",region:"Toute la Guinée"}}[kind]||{}:(S[kind].find(x=>x.id===id)||{});
   const edit=canEdit(kind,d);
   const autre=!ADM()&&kind==="rep"&&!isNew&&d.collab!==MYCOL(); // reportage d'un autre collaborateur
   const fields=FORMS[kind].filter(f=>(ADM()||f[5]!=="adm")&&!(autre&&["partCollab","frais","fraisDeclares"].includes(f[0])));
-  const fld=([k,l,t,req,opts,w])=>{const ro=!edit||(!ADM()&&w==="ro"),v=k==="taux"&&!num(d[k])?S.cfg.taux:d[k]??"",cls=t==="area"?' class="full"':"",r=req?" required":"",dis=ro?" disabled":"";
+  const fld=([k,l,t,req,opts,w])=>{const ro=!edit||(!ADM()&&w==="ro"),v=d[k]??"",cls=t==="area"?' class="full"':"",r=req?" required":"",dis=ro?" disabled":"";
     if(t==="cli"){const o=S.cli.slice().sort(byNom);
       return `<label class="full">${l}<select name="clientId"${dis}><option value="">—</option>${o.map(c=>`<option value="${esc(c.id)}" ${c.id===v?"selected":""}>${esc(c.nom)}${c.tel?" · "+esc(c.tel):""}</option>`).join("")}${ro?"":'<option value="__new">+ Nouveau client…</option>'}</select></label>
       ${!v&&d.client?`<p class="note full" style="margin:-6px 0 0">Client noté à la main : ${esc(d.client)} ${esc(d.contact)}</p>`:""}
@@ -520,8 +516,8 @@ function openForm(kind,id){
   if(kind==="cli"||kind==="rep")linkLieu(null,q("prefecture"),q("sousPrefecture"));
   const cs=frm.querySelector("[name=clientId]");if(cs)cs.onchange=()=>{const n=cs.value==="__new";$("#newcli").hidden=!n;if(n)frm._cnom.focus()};
   frm.querySelectorAll("[data-money]").forEach(moneyInput);
-  const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais"),t=g("taux");
-    c.innerHTML=`Marge : <strong>${gnf(m)}</strong> (≈ ${eur(m,t)}) · Reste à encaisser : <strong>${gnf(g("prix")-g("encaisse"))}</strong>${g("fraisDeclares")&&g("fraisDeclares")!==g("frais")?` · <button type="button" id="valFrais" style="min-height:32px">Valider les frais déclarés (${gnf(g("fraisDeclares"))})</button>`:""}`;
+  const calc=()=>{const c=$("#calc");if(!c)return;const f=new FormData(frm),g=k=>pn(f.get(k));const m=g("prix")-g("partCollab")-g("frais");
+    c.innerHTML=`Marge : <strong>${gnf(m)}</strong> · Reste à encaisser : <strong>${gnf(g("prix")-g("encaisse"))}</strong>${g("fraisDeclares")&&g("fraisDeclares")!==g("frais")?` · <button type="button" id="valFrais" style="min-height:32px">Valider les frais déclarés (${gnf(g("fraisDeclares"))})</button>`:""}`;
     const vf=$("#valFrais");if(vf)vf.onclick=()=>{frm.frais.value=grp(g("fraisDeclares"));calc()}};
   frm.oninput=calc;calc();
   const h=$("#hist");if(h)h.ontoggle=async()=>{if(!h.open||h.dataset.l)return;h.dataset.l=1;try{const {hist}=await api("hist",{q:{coll:COLL[kind],id}});h.lastElementChild.outerHTML=`<div>${histHTML(hist)}</div>`}catch(e){h.lastElementChild.textContent=e.offline?"Indisponible hors connexion.":"Impossible de charger l’historique."}};
@@ -812,8 +808,8 @@ function dlCSV(name,head,rows){
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv;charset=utf-8"}));a.download=name;document.body.append(a);a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000);toast("Fichier CSV téléchargé (s’ouvre dans Excel ou Google Sheets)");
 }
-const csvRep=()=>dlCSV(`reportages-${today()}.csv`,["date","titre","village","region","client","telephone_client","collaborateur","statut","prix_gnf","encaisse_gnf","reste_gnf","remuneration_gnf","frais_valides_gnf","frais_declares_gnf","marge_gnf","taux_eur","plateformes","lien"],
-  S.rep.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r=>[r.date,r.titre,r.village,r.region,cliNom(r),cliTel(r),colName(r.collab),r.statut,num(r.prix),num(r.encaisse),num(r.prix)-num(r.encaisse),num(r.partCollab),num(r.frais),num(r.fraisDeclares),marge(r),tauxDe(r),(r.plateformes||[]).join(","),r.lien]));
+const csvRep=()=>dlCSV(`reportages-${today()}.csv`,["date","titre","village","region","client","telephone_client","collaborateur","statut","prix_gnf","encaisse_gnf","reste_gnf","remuneration_gnf","frais_valides_gnf","frais_declares_gnf","marge_gnf","plateformes","lien"],
+  S.rep.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r=>[r.date,r.titre,r.village,r.region,cliNom(r),cliTel(r),colName(r.collab),r.statut,num(r.prix),num(r.encaisse),num(r.prix)-num(r.encaisse),num(r.partCollab),num(r.frais),num(r.fraisDeclares),marge(r),(r.plateformes||[]).join(","),r.lien]));
 const csvVer=()=>dlCSV(`versements-${today()}.csv`,["date","collaborateur","moyen","reference","reportage","montant_gnf","notes"],
   S.ver.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(v=>[v.date,colName(v.collab),v.moyen,v.ref,S.rep.find(r=>r.id===v.rep)?.titre||"",num(v.montant),v.notes]));
 

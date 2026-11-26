@@ -465,7 +465,7 @@ const FORMS={
  rep:[["titre","Titre du reportage","text",1],["village","Village / quartier","text"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["clientId","Client / commanditaire","cli"],["date","Date du tournage","date"],["collab","Collaborateur","col",0,null,"adm"],["statut","Statut","sel",0,STATUTS],
   ["prix","Prix facturé (GNF)","num",0,null,"adm"],["encaisse","Déjà encaissé (GNF)","num",0,null,"adm"],["modePaiement","Mode de paiement du client","chk",0,MOYENS_CLIENT,"adm"],["partCollab","Rémunération collaborateur (GNF)","num",0,null,"ro"],["frais","Frais de terrain validés (GNF)","num",0,null,"ro"],["fraisDeclares","Frais de terrain déclarés par le collaborateur (GNF)","num"],
   ["plateformes","Publié sur","chk",0,PLATEFORMES],["lien","Lien de la publication","url"],["notes","Notes","area"]],
- col:[["nom","Nom complet","text",1],["fonction","Fonction (sur la carte)","text"],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,ZONES],["adresse","Adresse (ex. Hérico, Lélouma)","text"],["moyen","Moyen de paiement préféré","sel",0,MOYENS],
+ col:[["nom","Nom complet","text",1],["fonction","Fonction (sur la carte)","text"],["qualiteVerso","Qualité au verso de la carte (ex. Coadministrateur ; vide = collaborateur)","text"],["tel","Téléphone / WhatsApp","tel"],["region","Zone couverte","sel",0,ZONES],["adresse","Adresse (ex. Hérico, Lélouma)","text"],["moyen","Moyen de paiement préféré","sel",0,MOYENS],
   ["numeroCarte","N° de carte (automatique si vide)","text"],["dateDelivrance","Date de délivrance de la carte","date"],["validite","Carte valable jusqu’au","date"],["notes","Notes","area"]],
  ver:[["collab","Collaborateur","col",1],["date","Date","date"],["montant","Montant (GNF)","num",1],["moyen","Moyen","sel",0,MOYENS],["ref","Référence de transaction","text"],["rep","Pour le reportage (facultatif)","rep"],["notes","Notes","area"]],
  cli:[["nom","Nom du client","text",1],["tel","Téléphone","tel"],["prefecture","Préfecture (commune à Conakry)","pref"],["sousPrefecture","Sous-préfecture","sp"],["adresse","Quartier / adresse","text"],["notes","Notes","area"]]
@@ -740,14 +740,15 @@ function drawRecto(c,K,logo,photo){
   rr(x,1187,963,453,66,33);x.fillStyle="#fcd116";x.fill();x.fillStyle="#15201a";x.font=CFONT(600,30);x.textAlign="center";x.fillText("Suivez Tour de Guinée 224",1413,1007);
   return cv;
 }
-function drawVerso(K,logo,sig){
+// Le texte du verso reprend la qualité du porteur (champ « Qualité au verso » de sa fiche).
+function drawVerso(c,K,logo,sig){
   const W=1712,H=1080,cv=document.createElement("canvas");cv.width=W;cv.height=H;const x=cv.getContext("2d");
   x.fillStyle="#00804f";x.fillRect(0,0,W,H);FLAG3.forEach((f,i)=>{x.fillStyle=f;x.fillRect(i*W/3,0,W/3+1,14)});
   seal(x,logo,156,146,74);
   x.textAlign="left";x.fillStyle="#fff";x.font=CFONT(800,46,1);x.fillText("Tour de Guinée 224",260,112);
   x.fillStyle="#fcd116";x.font="italic "+CFONT(500,26);wrapC(x,K.carteVision,1390).slice(0,3).forEach((l,i)=>x.fillText(l,260,154+i*36));
   x.fillStyle="#fff";x.font=CFONT(500,33);
-  wrapC(x,"Le porteur de cette carte est collaborateur de Tour de Guinée 224 et réalise des reportages dans les villages et préfectures de Guinée pour nos pages Facebook et TikTok. Merci de lui réserver un bon accueil et de faciliter son travail.",1550)
+  wrapC(x,"Le porteur de cette carte est "+(String(c.qualiteVerso||"").trim()||"collaborateur")+" de Tour de Guinée 224 et réalise des reportages dans les villages et préfectures de Guinée pour nos pages Facebook et TikTok. Merci de lui réserver un bon accueil et de faciliter son travail.",1550)
     .slice(0,4).forEach((l,i)=>x.fillText(l,80,292+i*48));
   rr(x,80,450,760,520,28);x.fillStyle="rgba(255,255,255,.13)";x.fill();
   x.fillStyle="#fcd116";x.font=CFONT(600,25);x.fillText("Vérification et contact",116,506);
@@ -772,7 +773,7 @@ async function openCarte(c){
   if(Object.keys(upd).length){await saveDoc("collaborateurs",c.id,{...upd,maj:new Date().toISOString()},c.nom);c={...c,...upd}}
   try{await Promise.all([document.fonts.load(CFONT(800,40,1)),document.fonts.load(CFONT(500,30)),document.fonts.load(CFONT(700,30))])}catch(_){}
   const [logo,photo,sig]=await Promise.all([loadImg("logo2.jpg"),loadImg(photoOf(c.id)),loadSig().then(loadImg)]);
-  const K=carteCfg(),r=drawRecto(c,K,logo,photo),v=drawVerso(K,logo,sig);
+  const K=carteCfg(),r=drawRecto(c,K,logo,photo),v=drawVerso(c,K,logo,sig);
   const jp=async cv=>({jpg:new Uint8Array(await (await new Promise(res=>cv.toBlob(res,"image/jpeg",.93))).arrayBuffer()),w:cv.width,h:cv.height});
   const pdf=new File([imagesToPdf([await jp(r),await jp(v)],242.65,153.07)],`Carte-${slug(c.nom)}.pdf`,{type:"application/pdf"});
   api("carte",{body:{id:c.id,numero:c.numeroCarte}}).catch(()=>{});

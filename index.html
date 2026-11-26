@@ -278,17 +278,15 @@ function board(L){
 function vDash(){
   if(!ADM())return vDashCollab();
   const R=S.rep,tot=R.reduce((a,r)=>a+num(r.prix),0),enc=R.reduce((a,r)=>a+num(r.encaisse),0);
-  const duC=S.col.reduce((a,c)=>a+Math.max(0,collabStats(c.id).reste),0);
   const mg=R.reduce((a,r)=>a+marge(r),0);
   const relance=R.filter(r=>pay(r)[0]!=="Payé"&&num(r.prix)>0);
   const fraisV=R.filter(r=>num(r.fraisDeclares)>0&&num(r.fraisDeclares)!==num(r.frais));
   return `<div class="row"><h2 class="sp">Où en sont les reportages</h2><button class="pri" data-new="rep">+ Nouveau reportage</button></div>
-  <div class="kpis">${kM("Facturé aux clients",tot)}${kM("Encaissé",enc)}${kM("Reste à encaisser",tot-enc,"· "+relance.length+" à relancer")}${kM("À verser aux collaborateurs",duC,"· marge "+gnf(mg))}</div>
+  <div class="kpis">${kM("Facturé aux clients",tot)}${kM("Encaissé",enc)}${kM("Reste à encaisser",tot-enc,"· "+relance.length+" à relancer")}${kM("Marge",mg)}</div>
   <h3>Tableau de production</h3>${board(R)}
   ${fraisV.length?`<h3>Frais déclarés à valider</h3><table class="stack"><thead><tr><th>Reportage</th><th>Collaborateur</th><th class="n">Déclarés</th><th class="n">Validés</th></tr></thead><tbody>${fraisV.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td>${esc(r.titre)}</td><td>${esc(colName(r.collab))}</td><td class="n">${gnf(r.fraisDeclares)}</td><td class="n">${gnf(r.frais)}</td></tr>`).join("")}</tbody></table>`:""}
   <h3>À relancer (paiement client)</h3>
-  ${relance.length?`<table class="stack"><thead><tr><th>Reportage</th><th>Client</th><th>Statut</th><th class="n">Reste dû</th></tr></thead><tbody>${relance.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td>${esc(r.titre)}</td><td>${esc(cliNom(r))} ${cliTel(r)?`<span class="note">${esc(cliTel(r))}</span>`:""}</td><td>${esc(r.statut)}</td><td class="n">${gnf(num(r.prix)-num(r.encaisse))}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Tous les clients ont payé.</div>'}
-  <h3>Par collaborateur</h3>${barsCollab()}`;
+  ${relance.length?`<table class="stack"><thead><tr><th>Reportage</th><th>Client</th><th>Statut</th><th class="n">Reste dû</th></tr></thead><tbody>${relance.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td>${esc(r.titre)}</td><td>${esc(cliNom(r))} ${cliTel(r)?`<span class="note">${esc(cliTel(r))}</span>`:""}</td><td>${esc(r.statut)}</td><td class="n">${gnf(num(r.prix)-num(r.encaisse))}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Tous les clients ont payé.</div>'}`;
 }
 function vDashCollab(){
   const mine=S.rep.filter(r=>r.collab===MYCOL()),x=collabStats(MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length;
@@ -300,11 +298,6 @@ function vDashCollab(){
 function card(r){
   const p=pay(r);
   return `<div class="card" tabindex="0" role="button" data-edit="rep:${esc(r.id)}"><strong>${esc(r.titre)}</strong><div class="m">${esc(r.village)}${r.region?" · "+esc(r.region):""}</div><div class="m">${ADM()?esc(colName(r.collab)):esc(cliNom(r))}${r.date?" · "+dt(r.date):""}</div><div class="row" style="margin-top:6px;gap:6px">${ADM()?`<span class="pill ${p[1]}">${p[0]}</span><span class="note">${gnf(r.prix)}</span>`:""}${r._pending?'<span class="pill p-wait">en attente d’envoi</span>':""}${r.exemple?'<span class="note">exemple</span>':''}</div></div>`;
-}
-function barsCollab(){
-  if(!S.col.length)return '<div class="empty">Ajoutez vos collaborateurs dans l’onglet Collaborateurs.</div>';
-  const st=S.col.slice().sort(byNom).map(c=>({c,...collabStats(c.id)})),mx=Math.max(1,...st.map(x=>Math.max(x.du,x.verse)));
-  return `<div class="bars">${st.map(x=>`<div class="b" title="${esc(x.c.nom)} : versé ${gnf(x.verse)}, reste ${gnf(x.reste)}"><span>${esc(x.c.nom)}</span><div class="track"><i style="width:${Math.min(x.verse,Math.max(x.du,x.verse))/mx*100}%;background:var(--grn)"></i><i style="width:${Math.max(0,x.reste)/mx*100}%;background:var(--yel)"></i></div><span class="v">reste ${gnf(x.reste)}</span></div>`).join("")}</div><p class="note"><span style="color:var(--grn)">■</span> déjà versé · <span style="color:var(--amb)">■</span> reste à verser (rémunération + frais de terrain validés)</p>`;
 }
 
 function filteredReps(){
@@ -383,8 +376,7 @@ function vStats(){
 
 function vCols(){
   return `<div class="row"><h2 class="sp">Collaborateurs en Guinée</h2><button class="pri" data-new="col">+ Ajouter</button></div>
-  ${S.col.length?`<table class="stack"><thead><tr><th>Nom</th><th>Téléphone</th><th>Zone</th><th>Paiement</th><th class="n">Reportages</th><th class="n">Dû</th><th class="n">Versé</th><th class="n">Reste</th></tr></thead><tbody>${S.col.slice().sort(byNom).map(c=>{const x=collabStats(c.id);return `<tr class="click" data-edit="col:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.exemple?' <span class="note">exemple</span>':''}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td>${esc(c.region)}</td><td>${esc(c.moyen)}</td><td class="n">${x.n}</td><td class="n">${gnf(x.du)}</td><td class="n">${gnf(x.verse)}</td><td class="n"><strong>${gnf(x.reste)}</strong></td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun collaborateur pour l’instant.</div>'}
-  <p class="note">« Dû » = rémunération convenue + frais de terrain validés (transport, carburant, logement) de chaque reportage.</p>`;
+  ${S.col.length?`<table class="stack"><thead><tr><th>Nom</th><th>Téléphone</th><th>Zone</th><th>Paiement</th><th class="n">Reportages</th></tr></thead><tbody>${S.col.slice().sort(byNom).map(c=>{const x=collabStats(c.id);return `<tr class="click" data-edit="col:${esc(c.id)}"><td><strong>${esc(c.nom)}</strong>${c.exemple?' <span class="note">exemple</span>':''}</td><td style="white-space:nowrap">${esc(c.tel)}</td><td>${esc(c.region)}</td><td>${esc(c.moyen)}</td><td class="n">${x.n}</td></tr>`}).join("")}</tbody></table>`:'<div class="empty">Aucun collaborateur pour l’instant.</div>'}`;
 }
 function vVers(){
   const L=S.ver.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));

@@ -81,6 +81,7 @@
   const E = (error, status = 400) => R({ error }, status);
   const me = () => { const u = db.users.find(x => x.id === +localStorage.getItem(KS)); return u ? { id: u.id, nom: u.nom, login: u.login, role: u.role, collab: u.collab || "", owner: !!u.owner && u.role === "admin" } : null; };
   const ownerGuard = (u, id) => { const t = db.users.find(z => z.id === +id); return t && t.owner && t.id !== u.id ? E("Ce compte est celui du propriétaire : lui seul peut le modifier.", 403) : null; };
+  const adminGuard = (u, id) => { const t = db.users.find(z => z.id === +id); return !u.owner && t && t.role === "admin" ? E("Seul le propriétaire peut modifier ou supprimer un compte administrateur.", 403) : null; };
   const isAdmin = u => u.role === "admin";
   const isMine = (u, d) => !!u.collab && d.collab === u.collab;
   // Comme api.php : un collaborateur voit tous les reportages, mais seulement ses versements.
@@ -253,6 +254,7 @@
         if (!nom || !/^[a-z0-9._-]{3,40}$/.test(login) || pw.length < 8) return E("Nom, identifiant (lettres/chiffres) et mot de passe de 8 caractères minimum requis");
         if (db.users.some(z => z.login === login)) return E("Cet identifiant existe déjà");
         const role = body.role === "admin" ? "admin" : "collab";
+        if (role === "admin" && !u.owner) return E("Seul le propriétaire peut créer un compte administrateur.", 403);
         db.users.push({ id: db.nextUser++, nom, login, pw, role, collab: role === "admin" ? "" : String(body.collab || "") });
         journal(u, "comptes", login, "compte créé", { "rôle": [null, role] }); save();
         return R({ ok: true });
@@ -266,6 +268,7 @@
       }
       case "user_role": {
         if ((x = need(true))) return x;
+        if (!u.owner) return E("Seul le propriétaire peut changer le rôle d’un compte.", 403);
         const z = db.users.find(v => v.id === +body.id), role = body.role === "admin" ? "admin" : "collab";
         if (+body.id === u.id) return E("Vous ne pouvez pas changer votre propre rôle");
         if (!z) return E("Compte introuvable", 404);
@@ -280,6 +283,7 @@
         const id = +(body.id || u.id), z = db.users.find(v => v.id === id);
         if (id !== u.id && !isAdmin(u)) return E("Interdit", 403);
         if ((x = ownerGuard(u, id))) return x;
+        if (id !== u.id && (x = adminGuard(u, id))) return x;
         if (id === u.id && z.pw !== body.ancien) return E("Mot de passe actuel incorrect", 403);
         if (String(body.password || "").length < 8) return E("8 caractères minimum");
         z.pw = String(body.password); save();
@@ -289,6 +293,7 @@
         if ((x = need(true))) return x;
         if (+body.id === u.id) return E("Vous ne pouvez pas supprimer votre propre compte");
         if ((x = ownerGuard(u, body.id))) return x;
+        if ((x = adminGuard(u, body.id))) return x;
         db.users = db.users.filter(v => v.id !== +body.id); save();
         return R({ ok: true });
       }

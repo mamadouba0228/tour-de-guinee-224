@@ -86,6 +86,9 @@ Reçus et factures (réservés au propriétaire)
      émettre les reçus (impression / PDF, ou envoi par WhatsApp) et modifier les
      informations imprimées dessus. Aucun autre administrateur ne peut le rétrograder,
      le supprimer ni changer son mot de passe.
+   - Comptes : seul le propriétaire crée les comptes administrateurs, change les rôles et
+     gère les comptes administrateurs. Les autres administrateurs créent et gèrent
+     uniquement les comptes collaborateurs.
    - Votre signature est le fichier data/signature.svg (déjà dans ce dossier). Le dossier
      data est protégé : le serveur ne donne la signature qu'au propriétaire connecté.
      Pour la changer, remplacez ce fichier (ou mettez un data/signature.png).

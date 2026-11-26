@@ -63,6 +63,12 @@ function protectOwner(array $u, int $targetId): void {
   $s = db()->prepare('SELECT owner FROM users WHERE id = ?'); $s->execute([$targetId]);
   if ((int) $s->fetchColumn() === 1 && $targetId !== $u['id']) fail('Ce compte est celui du propriétaire : lui seul peut le modifier.', 403);
 }
+// Les comptes administrateurs ne sont gérés (suppression, mot de passe) que par le propriétaire.
+function protectAdmins(array $u, int $targetId): void {
+  if (isOwner($u)) return;
+  $s = db()->prepare('SELECT role FROM users WHERE id = ?'); $s->execute([$targetId]);
+  if ($s->fetchColumn() === 'admin') fail('Seul le propriétaire peut modifier ou supprimer un compte administrateur.', 403);
+}
 function signatureFile(): ?string {
   foreach (['signature.svg' => 'image/svg+xml', 'signature.png' => 'image/png'] as $f => $m) {
     $p = dirname(DB_FILE) . '/' . $f;
@@ -412,6 +418,8 @@ switch ($a) {
     $u = need('admin');
     $nom = trim((string) ($in['nom'] ?? '')); $login = strtolower(trim((string) ($in['login'] ?? ''))); $pw = (string) ($in['password'] ?? '');
     $role = ($in['role'] ?? '') === 'admin' ? 'admin' : 'collab';
+    // Seul le propriétaire crée des administrateurs ; les autres administrateurs créent des collaborateurs.
+    if ($role === 'admin' && !isOwner($u)) fail('Seul le propriétaire peut créer un compte administrateur.', 403);
     $collab = (string) ($in['collab'] ?? '');
     if ($nom === '' || !preg_match('/^[a-z0-9._-]{3,40}$/', $login) || strlen($pw) < 8) fail('Nom, identifiant (lettres/chiffres) et mot de passe de 8 caractères minimum requis');
     if ($collab !== '' && !getRow('collaborateurs', $collab)) fail('Fiche collaborateur introuvable');
@@ -431,6 +439,7 @@ switch ($a) {
 
   case 'user_role':
     $u = need('admin');
+    if (!isOwner($u)) fail('Seul le propriétaire peut changer le rôle d’un compte.', 403);
     $id = (int) ($in['id'] ?? 0); $role = ($in['role'] ?? '') === 'admin' ? 'admin' : 'collab';
     if ($id === $u['id']) fail('Vous ne pouvez pas changer votre propre rôle');
     protectOwner($u, $id);
@@ -448,6 +457,7 @@ switch ($a) {
     $id = (int) ($in['id'] ?? $u['id']); $pw = (string) ($in['password'] ?? '');
     if ($id !== $u['id'] && !isAdmin($u)) fail('Interdit', 403);
     protectOwner($u, $id);
+    if ($id !== $u['id']) protectAdmins($u, $id);
     if ($id === $u['id']) {
       // Pour son propre compte, il faut redonner l'ancien mot de passe.
       $s = db()->prepare('SELECT hash FROM users WHERE id = ?'); $s->execute([$id]);
@@ -464,6 +474,7 @@ switch ($a) {
     $id = (int) ($in['id'] ?? 0);
     if ($id === $u['id']) fail('Vous ne pouvez pas supprimer votre propre compte');
     protectOwner($u, $id);
+    protectAdmins($u, $id);
     db()->prepare('DELETE FROM users WHERE id = ?')->execute([$id]);
     out(['ok' => true]);
 

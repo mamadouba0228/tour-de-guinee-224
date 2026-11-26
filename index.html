@@ -289,9 +289,9 @@ function vDash(){
   ${relance.length?`<table class="stack"><thead><tr><th>Reportage</th><th>Client</th><th>Statut</th><th class="n">Reste dû</th></tr></thead><tbody>${relance.map(r=>`<tr class="click" data-edit="rep:${esc(r.id)}"><td>${esc(r.titre)}</td><td>${esc(cliNom(r))} ${cliTel(r)?`<span class="note">${esc(cliTel(r))}</span>`:""}</td><td>${esc(r.statut)}</td><td class="n">${gnf(num(r.prix)-num(r.encaisse))}</td></tr>`).join("")}</tbody></table>`:'<div class="empty">Tous les clients ont payé.</div>'}`;
 }
 function vDashCollab(){
-  const mine=S.rep.filter(r=>r.collab===MYCOL()),x=collabStats(MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length;
+  const mine=S.rep.filter(r=>r.collab===MYCOL()),enCours=mine.filter(r=>r.statut!=="Publié").length,publies=mine.length-enCours;
   return `<div class="row"><h2 class="sp">Bonjour ${esc(S.me.nom)}</h2>${MYCOL()?'<button class="pri" data-new="rep">+ Nouveau reportage</button>':""}</div>
-  <div class="kpis">${kN("Mes reportages",x.n,enCours+" en cours")}${kM("Ce qui m’est dû",x.du,"· rémunération + frais validés")}${kM("Déjà reçu",x.verse)}${kM("Reste à recevoir",x.reste)}</div>
+  <div class="kpis">${kN("Mes reportages",mine.length)}${kN("En cours",enCours,"pas encore publiés")}${kN("Publiés",publies)}${kN("Équipe",S.rep.length,"reportages au total")}</div>
   <h3>Mes reportages</h3>${board(mine)}
   <p class="note">Les reportages de toute l’équipe sont dans l’onglet <a href="#reportages">Reportages</a> (${S.rep.length} au total).</p>`;
 }
